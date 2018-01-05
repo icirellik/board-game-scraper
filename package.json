@@ -1,0 +1,12 @@
+{
+  "name": "board-game-geek-scraper",
+  "version": "1.0.0",
+  "description": "Application that scraps useful information from boardgamegeek.com",
+  "main": "index.js",
+  "author": "Cameron Rollheiser <icirellik@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "puppeteer": "^0.13.0"
+  }
+}
