@@ -12,6 +12,7 @@ const browse = '/browse/boardgame';
     var running = true;
     var games = {};
     while (running) {
+
         // Check has 'Next'
         const nextSelector = 'div.infobox a';
         await page.waitForSelector(nextSelector);
@@ -21,14 +22,22 @@ const browse = '/browse/boardgame';
                 .map(anchor => anchor.href);
         }, nextSelector);
 
-        const gameSelector = '.collection_table .collection_objectname a';
+        // Find the list of games per page.
+        const gameSelector = '.collection_table tr';
+        // const gameSelector = '.collection_table .collection_objectname a';
         await page.waitForSelector(gameSelector);
         const games = await page.evaluate(gameSelector => {
-            const anchors = Array.from(document.querySelectorAll(gameSelector));
-            return anchors.map(anchor => {
+            const rows = Array.from(document.querySelectorAll(gameSelector));
+            return rows.filter(row => {
+                return !!row.querySelector('.collection_objectname a');
+            }).map(row => {
+                const anchor = row.querySelector('.collection_objectname a');
+                const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
                 return {
-                    anchor: anchor.href,
-                    name: anchor.textContent
+                    name: anchor.textContent,
+                    href: anchor.href,
+                    avgerageRating: rating[1].textContent.trim(),
+                    votes: rating[2].textContent.trim(),
                 };
             });
         }, gameSelector);
