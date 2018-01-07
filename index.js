@@ -9,6 +9,30 @@ const browse = '/browse/boardgame';
     const page = await browser.newPage();
     await page.goto(scheme + site + browse);
 
+
+    const singleGame = 'https://boardgamegeek.com/boardgame/192735/broom-service-card-game';
+    await page.goto(singleGame);
+    const gameData = await page.evaluate(() => {
+
+        const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
+
+        return {
+            age: details[2].querySelector('div span').textContent.trim(),
+            players: {
+                maximun: details[0].querySelectorAll('div span span')[1].textContent.trim().substring(1),
+                minimum: details[0].querySelectorAll('div span span')[0].textContent.trim(),
+            },
+            time: {
+                maximun: details[1].querySelectorAll('div span span span')[1].textContent.trim().substring(1),
+                minimum: details[1].querySelectorAll('div span span span')[0].textContent.trim(),
+            },
+            weight: details[3].querySelector('div span span').textContent.trim(),
+        }
+    });
+    console.log(gameData);
+
+    return;
+
     var running = true;
     var games = {};
     while (running) {
