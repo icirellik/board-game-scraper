@@ -6,7 +6,14 @@
   "author": "Cameron Rollheiser <icirellik@gmail.com>",
   "license": "MIT",
   "private": true,
+  "scripts": {
+    "execute": "node index.js",
+    "test": "mocha"
+  },
   "dependencies": {
     "puppeteer": "^0.13.0"
+  },
+  "devDependencies": {
+    "mocha": "^4.1.0"
   }
 }
