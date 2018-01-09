@@ -2,136 +2,136 @@ const puppeteer = require('puppeteer');
 const url = require('url');
 
 module.exports.createBrowser = async () => {
-    return await puppeteer.launch();
+  return await puppeteer.launch();
 };
 
 module.exports.createPage = async (browser) => {
-    return await browser.newPage();
+  return await browser.newPage();
 };
 
 module.exports.closeBrowser = async (browser) => {
-    await browser.close();
+  await browser.close();
 };
 
 module.exports.gameList = async (page, browseUrl) => {
 
-    console.log(`Browsing to - ${browseUrl}`);
-    await page.goto(browseUrl);
+  console.log(`Browsing to - ${browseUrl}`);
+  await page.goto(browseUrl);
 
-    // Selector for the 'next page' link.
-    const nextSelector = 'div.infobox a';
+  // Selector for the 'next page' link.
+  const nextSelector = 'div.infobox a';
 
-    // Selector for the 'game list'.
-    const gameListSelector = '.collection_table tr';
+  // Selector for the 'game list'.
+  const gameListSelector = '.collection_table tr';
 
-    // Wait for the page to load.
-    await page.waitForSelector(nextSelector);
-    await page.waitForSelector(gameListSelector);
+  // Wait for the page to load.
+  await page.waitForSelector(nextSelector);
+  await page.waitForSelector(gameListSelector);
 
-    const data = await page.evaluate((nextSelector, gameListSelector) => {
+  const data = await page
+    .evaluate((nextSelector, gameListSelector) => {
+      // Next Page Check.
+      const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
+      const nextPageAnchor = pageAnchors
+        .filter(anchor => anchor.title === 'next page')
+        .map(anchor => anchor.href);
 
-        // Next Page Check.
-        const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
-        const nextPageAnchor = pageAnchors
-            .filter(anchor => anchor.title === 'next page')
-            .map(anchor => anchor.href);
-
-        // Game List.
-        const rows = Array.from(document.querySelectorAll(gameListSelector));
-        const games = rows.filter(row => {
-            return !!row.querySelector('.collection_objectname a');
-        }).map(row => {
-            const anchor = row.querySelector('.collection_objectname a');
-            const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
-            return {
-                name: anchor.textContent,
-                href: anchor.href,
-                avgerageRating: rating[1].textContent.trim(),
-                votes: rating[2].textContent.trim(),
-            };
-        });
-
+      // Game List.
+      const rows = Array.from(document.querySelectorAll(gameListSelector));
+      const games = rows.filter(row => {
+        return !!row.querySelector('.collection_objectname a');
+      }).map(row => {
+        const anchor = row.querySelector('.collection_objectname a');
+        const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
         return {
-            games,
-            hasNext: nextPageAnchor.length !== 0,
-            next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
-            success: true,
-        }
+          avgerageRating: rating[1].textContent.trim(),
+          href: anchor.href,
+          name: anchor.textContent,
+          votes: rating[2].textContent.trim(),
+        };
+      });
+
+      return {
+        games,
+        hasNext: nextPageAnchor.length !== 0,
+        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
+        success: true,
+      }
     }, nextSelector, gameListSelector)
     .catch(err => {
-        return {
-            success: false,
-            next: browseUrl,
-        };
-    });;
+      return {
+        next: browseUrl,
+        success: false,
+      };
+    });
 
-    return {
-        games: data.games,
-        nextUrl: (data.hasNext) ? data.next : null,
-        href: browseUrl,
-        success: data.success,
-    };
+  return {
+    games: data.games,
+    nextUrl: (data.hasNext) ? data.next : null,
+    href: browseUrl,
+    success: data.success,
+  };
 };
 
 module.exports.gameDetails = async (page, game) => {
-    console.log(game.href);
+  console.log(game.href);
 
-    // Pull the game id out of the url.
-    game.id = url.parse(game.href).pathname.split('/')[2];
+  // Pull the game id out of the url.
+  game.id = url.parse(game.href).pathname.split('/')[2];
 
-    await page.goto(game.href);
-    await page.waitForSelector('.game-header-body');
-    const data = await page.evaluate((game,) => {
-        const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
+  await page.goto(game.href);
+  await page.waitForSelector('.game-header-body');
+  const data = await page.evaluate((game,) => {
+    const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
 
-        const players = details[0].querySelectorAll('.gameplay-item-primary span span');
-        const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
-        const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
+    const players = details[0].querySelectorAll('.gameplay-item-primary span span');
+    const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
+    const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
 
-        const times = details[1].querySelectorAll('div span span span');
-        const minimumTime = (times.length > 0) ? times[0].textContent.trim() : 0;
-        const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
+    const times = details[1].querySelectorAll('div span span span');
+    const minimumTime = (times.length > 0) ? times[0].textContent.trim() : 0;
+    const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
 
-        return {
-            gameDetails: {
-                id: game.id,
-                title: game.name,
-                averageRating: game.averageRating,
-                votes: game.votes,
-                age: details[2].querySelector('div span').textContent.trim(),
-                players: {
-                    maximun: maximunPlayers,
-                    minimum: minimumPlayers,
-                },
-                time: {
-                    maximun: maximumTime,
-                    minimum: minimumTime,
-                },
-                weight: details[3].querySelector('div span span').textContent.trim(),
-                features: {
+    return {
+      gameDetails: {
+        age: details[2].querySelector('div span').textContent.trim(),
+        averageRating: game.averageRating,
+        id: game.id,
+        title: game.name,
+        votes: game.votes,
+        players: {
+          maximun: maximunPlayers,
+          minimum: minimumPlayers,
+        },
+        time: {
+          maximun: maximumTime,
+          minimum: minimumTime,
+        },
+        weight: details[3].querySelector('div span span').textContent.trim(),
+        features: {
 
-                },
-                designers: [
+        },
+        designers: [
 
-                ],
-                artists: [
+        ],
+        artists: [
 
-                ],
-                publishers: [
+        ],
+        publishers: [
 
-                ],
-            },
-            href: game.href,
-            success: true,
-        };
-    }, game)
-    .catch(err => {
-        return {
-            gameDetails: {},
-            success: false,
-            href: game.href,
-        };
-    });
-    console.log(data);
-    return data;
+        ],
+      },
+      href: game.href,
+      success: true,
+    };
+  }, game)
+  .catch(err => {
+    return {
+      gameDetails: {},
+      href: game.href,
+      success: false,
+    };
+  });
+  console.log(data);
+  return data;
 };
