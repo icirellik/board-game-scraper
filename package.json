@@ -7,7 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "execute": "node index.js",
+    "start": "node index.js",
     "test": "mocha"
   },
   "dependencies": {
