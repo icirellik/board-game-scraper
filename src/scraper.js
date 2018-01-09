@@ -28,7 +28,7 @@ module.exports.gameList = async (page, browseUrl) => {
     await page.waitForSelector(nextSelector);
     await page.waitForSelector(gameListSelector);
 
-    const pageData = await page.evaluate((nextSelector, gameListSelector) => {
+    const data = await page.evaluate((nextSelector, gameListSelector) => {
 
         // Next Page Check.
         const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
@@ -55,20 +55,33 @@ module.exports.gameList = async (page, browseUrl) => {
             games,
             hasNext: nextPageAnchor.length !== 0,
             next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
+            success: true,
         }
-    }, nextSelector, gameListSelector);
+    }, nextSelector, gameListSelector)
+    .catch(err => {
+        return {
+            success: false,
+            next: browseUrl,
+        };
+    });;
 
     return {
-        games: pageData.games,
-        nextUrl: (pageData.hasNext) ? pageData.next : null,
+        games: data.games,
+        nextUrl: (data.hasNext) ? data.next : null,
+        href: browseUrl,
+        success: data.success,
     };
 };
 
 module.exports.gameDetails = async (page, game) => {
     console.log(game.href);
+
+    // Pull the game id out of the url.
+    game.id = url.parse(game.href).pathname.split('/')[2];
+
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
-    const gameData = await page.evaluate((game, id) => {
+    const data = await page.evaluate((game,) => {
         const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
 
         const players = details[0].querySelectorAll('.gameplay-item-primary span span');
@@ -80,34 +93,45 @@ module.exports.gameDetails = async (page, game) => {
         const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
 
         return {
-            id,
-            title: game.name,
-            averageRating: game.averageRating,
-            votes: game.votes,
-            age: details[2].querySelector('div span').textContent.trim(),
-            players: {
-                maximun: maximunPlayers,
-                minimum: minimumPlayers,
+            gameDetails: {
+                id: game.id,
+                title: game.name,
+                averageRating: game.averageRating,
+                votes: game.votes,
+                age: details[2].querySelector('div span').textContent.trim(),
+                players: {
+                    maximun: maximunPlayers,
+                    minimum: minimumPlayers,
+                },
+                time: {
+                    maximun: maximumTime,
+                    minimum: minimumTime,
+                },
+                weight: details[3].querySelector('div span span').textContent.trim(),
+                features: {
+
+                },
+                designers: [
+
+                ],
+                artists: [
+
+                ],
+                publishers: [
+
+                ],
             },
-            time: {
-                maximun: maximumTime,
-                minimum: minimumTime,
-            },
-            weight: details[3].querySelector('div span span').textContent.trim(),
-            features: {
-
-            },
-            designers: [
-
-            ],
-            artists: [
-
-            ],
-            publishers: [
-
-            ],
+            href: game.href,
+            success: true,
         };
-    }, game, url.parse(game.href).pathname.split('/')[2]);
-    console.log(gameData);
-    return gameData;
+    }, game)
+    .catch(err => {
+        return {
+            gameDetails: {},
+            success: false,
+            href: game.href,
+        };
+    });
+    console.log(data);
+    return data;
 };

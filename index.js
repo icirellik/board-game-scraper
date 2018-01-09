@@ -11,7 +11,10 @@ const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
     let bookmark = gameBrowseRoot;
     let fullGames = [];
     while (!!bookmark) {
-        const { games, nextUrl } = await scraper.gameList(page, bookmark);
+        const { games, nextUrl, success, href } = await scraper.gameList(page, bookmark);
+        if (!success) {
+            continue;
+        }
 
         fullGames = fullGames.concat(games);
         bookmark = nextUrl;
@@ -21,10 +24,15 @@ const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
         for (let game of games) {
             count = count + 1;
             console.log(`game details - ${count} \ ${fullGames.length}`);
-            const gameDetails = await scraper.gameDetails(page, game);
-            fullGames.push(gameDetails);
+            let fetchDetails = true;
+            while (fetchDetails) {
+                const { gameDetails, success, href } = await scraper.gameDetails(page, game);
+                if (success) {
+                    fetchDetails = false;
+                    fullGames.push(gameDetails);
+                }
+            }
         }
-
         console.log(`Games Loaded ${fullGames.length} - ${bookmark}`)
     }
 
