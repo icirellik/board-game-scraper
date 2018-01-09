@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const Q = require('q');
 const url = require('url');
 
 module.exports.createBrowser = async () => {
@@ -14,22 +15,20 @@ module.exports.closeBrowser = async (browser) => {
 };
 
 module.exports.gameList = async (page, browseUrl) => {
+  return await Q.fcall(async () => {
+    console.log(`Browsing to - ${browseUrl}`);
+    await page.goto(browseUrl);
 
-  console.log(`Browsing to - ${browseUrl}`);
-  await page.goto(browseUrl);
+    // Selector for the 'next page' link.
+    const nextSelector = 'div.infobox a';
 
-  // Selector for the 'next page' link.
-  const nextSelector = 'div.infobox a';
+    // Selector for the 'game list'.
+    const gameListSelector = '.collection_table tr';
 
-  // Selector for the 'game list'.
-  const gameListSelector = '.collection_table tr';
-
-  // Wait for the page to load.
-  await page.waitForSelector(nextSelector);
-  await page.waitForSelector(gameListSelector);
-
-  const data = await page
-    .evaluate((nextSelector, gameListSelector) => {
+    // Wait for the page to load.
+    await page.waitForSelector(nextSelector);
+    await page.waitForSelector(gameListSelector);
+    const data = await page.evaluate((nextSelector, gameListSelector) => {
       // Next Page Check.
       const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
       const nextPageAnchor = pageAnchors
@@ -54,84 +53,89 @@ module.exports.gameList = async (page, browseUrl) => {
       return {
         games,
         hasNext: nextPageAnchor.length !== 0,
-        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
-        success: true,
+        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : ''
       }
-    }, nextSelector, gameListSelector)
-    .catch(err => {
-      return {
-        next: browseUrl,
-        success: false,
-      };
-    });
-
-  return {
-    games: data.games,
-    nextUrl: (data.hasNext) ? data.next : null,
-    href: browseUrl,
-    success: data.success,
-  };
-};
-
-module.exports.gameDetails = async (page, game) => {
-  console.log(game.href);
-
-  // Pull the game id out of the url.
-  game.id = url.parse(game.href).pathname.split('/')[2];
-
-  await page.goto(game.href);
-  await page.waitForSelector('.game-header-body');
-  const data = await page.evaluate((game,) => {
-    const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
-
-    const players = details[0].querySelectorAll('.gameplay-item-primary span span');
-    const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
-    const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
-
-    const times = details[1].querySelectorAll('div span span span');
-    const minimumTime = (times.length > 0) ? times[0].textContent.trim() : 0;
-    const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
+    }, nextSelector, gameListSelector);
 
     return {
-      gameDetails: {
-        age: details[2].querySelector('div span').textContent.trim(),
-        averageRating: game.averageRating,
-        id: game.id,
-        title: game.name,
-        votes: game.votes,
-        players: {
-          maximun: maximunPlayers,
-          minimum: minimumPlayers,
-        },
-        time: {
-          maximun: maximumTime,
-          minimum: minimumTime,
-        },
-        weight: details[3].querySelector('div span span').textContent.trim(),
-        features: {
-
-        },
-        designers: [
-
-        ],
-        artists: [
-
-        ],
-        publishers: [
-
-        ],
-      },
-      href: game.href,
+      games: data.games,
+      nextUrl: (data.hasNext) ? data.next : null,
+      browseUrl,
       success: true,
     };
-  }, game)
+
+  })
   .catch(err => {
+    console.log(`Failed to retrieve game details ${err}`);
     return {
-      gameDetails: {},
-      href: game.href,
+      browseUrl,
       success: false,
     };
   });
-  console.log(data);
-  return data;
+
+};
+
+module.exports.gameDetails = async (page, game) => {
+  return await Q.fcall(async () => {
+    console.log(game.href);
+
+    // Pull the game id out of the url.
+    game.id = url.parse(game.href).pathname.split('/')[2];
+
+    await page.goto(game.href);
+    await page.waitForSelector('.game-header-body');
+    const data = await page.evaluate((game,) => {
+      const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
+
+      const players = details[0].querySelectorAll('.gameplay-item-primary span span');
+      const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
+      const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
+
+      const times = details[1].querySelectorAll('div span span span');
+      const minimumTime = (times.length > 0) ? times[0].textContent.trim() : 0;
+      const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
+
+      return {
+        gameDetails: {
+          age: details[2].querySelector('div span').textContent.trim(),
+          averageRating: game.averageRating,
+          id: game.id,
+          title: game.name,
+          votes: game.votes,
+          players: {
+            maximun: maximunPlayers,
+            minimum: minimumPlayers,
+          },
+          time: {
+            maximun: maximumTime,
+            minimum: minimumTime,
+          },
+          weight: details[3].querySelector('div span span').textContent.trim(),
+          features: {
+
+          },
+          designers: [
+
+          ],
+          artists: [
+
+          ],
+          publishers: [
+
+          ],
+        },
+        href: game.href,
+        success: true,
+      };
+    }, game)
+    console.log(data);
+    return data;
+  })
+  .catch(err => {
+    return {
+      browseUrl: game.href,
+      gameDetails: {},
+      success: false,
+    };
+  });
 };
