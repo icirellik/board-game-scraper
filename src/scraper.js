@@ -1,6 +1,9 @@
 const puppeteer = require('puppeteer');
 const Q = require('q');
 const url = require('url');
+const {
+  performance
+} = require('perf_hooks');
 
 module.exports.createBrowser = async () => {
   return await puppeteer.launch();
@@ -15,8 +18,9 @@ module.exports.closeBrowser = async (browser) => {
 };
 
 module.exports.gameList = async (page, browseUrl) => {
+  performance.mark('gameListStart');
   return await Q.fcall(async () => {
-    console.log(`Browsing to - ${browseUrl}`);
+    console.log(`scraping ${browseUrl}`);
     await page.goto(browseUrl);
 
     // Selector for the 'next page' link.
@@ -63,7 +67,6 @@ module.exports.gameList = async (page, browseUrl) => {
       browseUrl,
       success: true,
     };
-
   })
   .catch(err => {
     console.log(`Failed to retrieve game details ${err}`);
@@ -71,13 +74,22 @@ module.exports.gameList = async (page, browseUrl) => {
       browseUrl,
       success: false,
     };
+  })
+  .then(data => {
+    performance.mark('gameListEnd');
+    performance.measure('gameList', 'gameListStart', 'gameListEnd');
+    const measure = performance.getEntriesByName('gameList')[0];
+    console.log(`gamesList - ${measure.duration}`);
+    performance.clearMarks();
+    performance.clearMeasures();
+    return data;
   });
-
 };
 
 module.exports.gameDetails = async (page, game) => {
+  performance.mark('gameDetailsStart');
   return await Q.fcall(async () => {
-    console.log(game.href);
+    console.log(`scraping - ${game.href}`);
 
     // Pull the game id out of the url.
     game.id = url.parse(game.href).pathname.split('/')[2];
@@ -128,7 +140,7 @@ module.exports.gameDetails = async (page, game) => {
         success: true,
       };
     }, game)
-    console.log(data);
+    console.log(JSON.stringify(data));
     return data;
   })
   .catch(err => {
@@ -137,5 +149,14 @@ module.exports.gameDetails = async (page, game) => {
       gameDetails: {},
       success: false,
     };
+  })
+  .then(data => {
+    performance.mark('gameDetailsEnd');
+    performance.measure('gameDetails', 'gameDetailsStart', 'gameDetailsEnd');
+    const measure = performance.getEntriesByName('gameDetails')[0];
+    console.log(`gameDetails - ${measure.duration}`);
+    performance.clearMarks();
+    performance.clearMeasures();
+    return data;
   });
 };
