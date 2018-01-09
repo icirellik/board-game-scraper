@@ -32,7 +32,7 @@ const output = 'games.txt';
     // Get all game details
     let count = 1;
     for (let game of games) {
-      console.log(`game details progress - ${count} of ${games.length} (${fullGames.length})`);
+      console.log(`game details progress - ${count} of ${games.length} (${fullGames})`);
       let fetchDetails = true;
       while (fetchDetails) {
         const { gameDetails, success, href } = await scraper.gameDetails(page, game);
