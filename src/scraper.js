@@ -144,6 +144,42 @@ module.exports.gameDetails = async (page, game) => {
 
       }
 
+      // Game Categories
+      const featureGroups = Array.from(root.querySelectorAll('.game-description-classification .panel-body ul li'));
+      let types = [];
+      let categories = [];
+      let mechanisms = [];
+      let families = [];
+      for (const featureGroup of featureGroups) {
+        const featureTitle = featureGroup.querySelector('.feature-title');
+        // Type
+        if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Type/g) !== -1) {
+          const rawType = featureGroup.querySelector('.feature-description span');
+          types.push(rawType.textContent.trim());
+        }
+        // Category
+        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Category/g) !== -1) {
+          const rawCategories = featureGroup.querySelectorAll('.feature-description span a');
+          for (const rawCategory of rawCategories) {
+            categories.push(rawCategory.textContent.trim());
+          }
+        }
+        // Mechanisms
+        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Mechanisms/g) !== -1) {
+          const rawMechanisms = featureGroup.querySelectorAll('.feature-description span a');
+          for (const rawMechanism of rawMechanisms) {
+            mechanisms.push(rawMechanism.textContent.trim());
+          }
+        }
+        // Family
+        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Family/g) !== -1) {
+          const rawFamilies = featureGroup.querySelectorAll('.feature-description span a');
+          for (const rawFamily of rawFamilies) {
+            families.push(rawFamily.textContent.trim());
+          }
+        }
+      }
+
       return {
         gameDetails: {
           age: details[2].querySelector('div span').textContent.trim(),
@@ -152,16 +188,19 @@ module.exports.gameDetails = async (page, game) => {
           title: game.name,
           votes: game.votes,
           players: {
-            maximun: maximunPlayers,
+            maximum: maximunPlayers,
             minimum: minimumPlayers,
           },
           time: {
-            maximun: maximumTime,
+            maximum: maximumTime,
             minimum: minimumTime,
           },
           weight: details[3].querySelector('div span span').textContent.trim(),
           features: {
-
+            categories,
+            families,
+            mechanisms,
+            types,
           },
           designers,
           artists,
