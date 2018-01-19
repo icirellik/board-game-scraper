@@ -1,6 +1,11 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer';
+import cluster from 'cluster';
+import http from 'http';
+
 import scraper from './src/scraper';
+
+const numCPUs = 4;
 
 const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
 const output = '/tmp/games.txt';
@@ -43,7 +48,7 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
     // Get all game details
     let count = 1;
     for (let game of games) {
-      console.log(`game details progress - ${count} of ${games.length} (${fullGames})`);
+      console.log(`games loaded - ${fullGames} - ${count} / ${games.length}`);
       let fetchDetails = true;
       while (fetchDetails) {
         const { gameDetails, success, href } = await scraper.gameDetails(page, game);
@@ -56,7 +61,7 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
       count++;
     }
     fs.fsyncSync(fd);
-    console.log(`Games Loaded ${fullGames.length} - ${bookmark}`)
+    console.log(`games loaded ${fullGames.length} - ${bookmark}`)
   }
 
   await scraper.closeBrowser(browser);

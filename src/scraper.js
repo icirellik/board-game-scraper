@@ -22,7 +22,7 @@ module.exports.closeBrowser = async (browser) => {
 module.exports.gameList = async (page, browseUrl) => {
   performance.mark('gameListStart');
   return await Q.fcall(async () => {
-    console.log(`scraping ${browseUrl}`);
+    console.log(`--- fetching - ${browseUrl}`);
     await page.goto(browseUrl);
 
     // Selector for the 'next page' link.
@@ -91,7 +91,7 @@ module.exports.gameList = async (page, browseUrl) => {
 module.exports.gameDetails = async (page, game) => {
   performance.mark('gameDetailsStart');
   return await Q.fcall(async () => {
-    console.log(`scraping - ${game.href}`);
+    console.log(`--- fetching - ${game.href}`);
 
     // Pull the game id out of the url.
     game.id = url.parse(game.href).pathname.split('/')[2];
@@ -229,4 +229,20 @@ module.exports.gameDetails = async (page, game) => {
     performance.clearMeasures();
     return data;
   });
+};
+
+module.exports.gameRatings = async (page, game) => {
+
+  // if rating is 0 and review_tstamp is null then don't include
+
+  // objectid
+  // rating
+  // user.username
+  // user.country
+  // user.city
+  // user.state
+  // review_tstamp
+
+  // https://boardgamegeek.com/api/collections?ajax=1&objectid=221194&objecttype=thing&oneperuser=1&pageid=1&showcount=50&sort=review_tstamp
+
 };
