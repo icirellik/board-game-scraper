@@ -1,16 +1,18 @@
-const puppeteer = require('puppeteer');
-const Q = require('q');
-const url = require('url');
-const {
+import puppeteer from 'puppeteer';
+import Q, { race } from 'q';
+import url from 'url';
+import {
   performance
-} = require('perf_hooks');
+} from 'perf_hooks';
 
 module.exports.createBrowser = async () => {
   return await puppeteer.launch();
 };
 
 module.exports.createPage = async (browser) => {
-  return await browser.newPage();
+  const page = await browser.newPage();
+  page.on('console', msg => console.log('PAGE LOG:', msg.text));
+  return page;
 };
 
 module.exports.closeBrowser = async (browser) => {
@@ -96,16 +98,51 @@ module.exports.gameDetails = async (page, game) => {
 
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
-    const data = await page.evaluate((game,) => {
-      const details = Array.from(document.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
+    const data = await page.evaluate(game => {
+      const root = document.querySelector('div.game:not(.game-loading)');
+      const details = Array.from(root.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
 
       const players = details[0].querySelectorAll('.gameplay-item-primary span span');
       const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
       const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
 
-      const times = details[1].querySelectorAll('div span span span');
-      const minimumTime = (times.length > 0) ? times[0].textContent.trim() : 0;
-      const maximumTime = (times.length > 1) ? times[1].textContent.trim().substring(1) : minimumTime;
+      const playLength = details[1].querySelectorAll('div span span span');
+      const minimumTime = (playLength.length > 0) ? playLength[0].textContent.trim() : 0;
+      const maximumTime = (playLength.length > 1) ? playLength[1].textContent.trim().substring(1) : minimumTime;
+
+      // Game credits
+      const gameCredits = Array.from(root.querySelectorAll('.game-header .game-header-credits .credits ul li'));
+      let artists = [];
+      let designers = [];
+      let publishers = [];
+      for (const gameCredit of gameCredits) {
+        const label = gameCredit.querySelector('strong');
+
+        // Designers
+        if (label && label.textContent && label.textContent.search(/Designer/g) !== -1) {
+          const rawDesigners = Array.from(gameCredit.querySelectorAll('span a'));
+          for (const rawDesigner of rawDesigners) {
+            designers.push(rawDesigner.textContent.trim());
+          }
+        }
+
+        // Artists
+        else if (label && label.textContent && label.textContent.search(/Artist/g) !== -1) {
+          const rawArtists = Array.from(gameCredit.querySelectorAll('span a'));
+          for (const rawArtist of rawArtists) {
+            artists.push(rawArtist.textContent.trim());
+          }
+        }
+
+        // Publishers
+        else if (label && label.textContent && label.textContent.search(/Publisher/g) !== -1) {
+          const rawPublihers = Array.from(gameCredit.querySelectorAll('span a'));
+          for (const rawPublisher of rawPublihers) {
+            publishers.push(rawPublisher.textContent.trim());
+          }
+        }
+
+      }
 
       return {
         gameDetails: {
@@ -126,15 +163,9 @@ module.exports.gameDetails = async (page, game) => {
           features: {
 
           },
-          designers: [
-
-          ],
-          artists: [
-
-          ],
-          publishers: [
-
-          ],
+          designers,
+          artists,
+          publishers,
         },
         href: game.href,
         success: true,
