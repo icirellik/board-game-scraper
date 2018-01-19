@@ -1,9 +1,9 @@
-const fs = require('fs');
+import fs from 'fs';
 const puppeteer = require('puppeteer');
 const scraper = require('./src/scraper');
 
 const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
-const output = 'games.txt';
+const output = '/tmp/games.txt';
 
 (async () => {
   const fd = fs.openSync(output, 'a');
@@ -44,6 +44,7 @@ const output = 'games.txt';
       }
       count++;
     }
+    fs.fsyncSync(fd);
     console.log(`Games Loaded ${fullGames.length} - ${bookmark}`)
   }
 

@@ -7,14 +7,37 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "start": "node index.js",
+    "dev": "pm2 start index.js --watch --interpreter babel-node --name board-game-scraper",
     "test": "mocha"
   },
+  "babel": {
+    "presets": [
+      [
+        "env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ],
+    "plugins": [
+      "transform-class-properties",
+      "transform-object-rest-spread"
+    ]
+  },
   "dependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-stage-2": "^6.24.1",
+    "pm2": "^2.9.1",
     "puppeteer": "^0.13.0",
     "q": "^1.5.1"
   },
   "devDependencies": {
+    "babel-eslint": "^8.2.1",
+    "eslint": "^4.15.0",
     "mocha": "^4.1.0"
   }
 }
