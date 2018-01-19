@@ -1,9 +1,20 @@
 import fs from 'fs';
-const puppeteer = require('puppeteer');
-const scraper = require('./src/scraper');
+import puppeteer from 'puppeteer';
+import scraper from './src/scraper';
 
 const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
 const output = '/tmp/games.txt';
+
+const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farmers';
+
+// (async () => {
+//   const browser = await scraper.createBrowser();
+//   const page = await scraper.createPage(browser);
+//   const { gameDetails, success, href } = await scraper.gameDetails(page, {
+//     href: singleGame
+//   });
+//   await scraper.closeBrowser(browser);
+// })()
 
 (async () => {
   const fd = fs.openSync(output, 'a');
