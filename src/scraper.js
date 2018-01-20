@@ -5,6 +5,8 @@ import {
   performance
 } from 'perf_hooks';
 
+let requestCache = {};
+
 module.exports.createBrowser = async () => {
   return await puppeteer.launch();
 };
@@ -14,6 +16,7 @@ module.exports.createPage = async (browser) => {
   await page.setRequestInterception(true);
   await page.setJavaScriptEnabled(true);
   page.on('request', interceptedRequest => {
+    const interceptedRequestUrl = url.parse(interceptedRequest.url);
     if (interceptedRequest.resourceType === 'image' ||
         interceptedRequest.resourceType === 'font' ||
         interceptedRequest.resourceType === 'stylesheet' ||
@@ -30,20 +33,33 @@ module.exports.createPage = async (browser) => {
         interceptedRequest.url.search(/geekdo\.com\/api\/subscriptions/g) !== -1 ||
         // interceptedRequest.url.search(/geekitem.*\.js/g) !== -1 ||
         interceptedRequest.url.search(/\/api\/geekads/g) !== -1 ||
-        interceptedRequest.url.search(/google/g) !== -1 ||
         interceptedRequest.url.search(/\/amazon\//g) !== -1 ||
         interceptedRequest.url.search(/amazon-adsystem/g) !== -1 ||
         interceptedRequest.url.search(/newrelic\.com/g) !== -1 ||
         interceptedRequest.url.search(/youtube\.com/g) !== -1 ||
-        interceptedRequest.url.search(/twitter/g) !== -1
+        interceptedRequest.url.search(/twitter/g) !== -1 ||
+        interceptedRequestUrl.host.search(/google/g) !== -1
     ) {
-      // console.log(`ABORTED ${interceptedRequest.url}`);
+      console.log(`ABORTED ${interceptedRequest.url}`);
       interceptedRequest.abort();
+    // } else if (interceptedRequest.url in requestCache) {
+      // interceptedRequest.respond(requestCache[interceptedRequest.url]);
     } else {
       console.log(`KEPT ${interceptedRequest.url}`)
       interceptedRequest.continue();
     }
   });
+  // page.on('response', async response => {
+  //   const data = {
+  //     status: response.status,
+  //     headers: response.headers,
+  //     contentType: response.headers['content-type'],
+  //     body: await response.text(),
+  //   }
+  //   // console.log(data)
+  //   requestCache[response.url] = data;
+
+  // });
   page.on('console', msg => console.log('PAGE LOG:', msg.text));
   return page;
 };

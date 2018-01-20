@@ -15,7 +15,7 @@ const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
 const output = '/tmp/games.txt';
 const complete = '/tmp/game-loaded.json';
 
-const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secret-ninja-death-touch-edition';
+// const singleGame = 'https://boardgamegeek.com/boardgame/29649/barney-google-and-spark-plug-game';
 
 // (async () => {
 //   const browser = await scraper.createBrowser();
@@ -47,6 +47,7 @@ const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secre
     process.exit();
   });
 
+  // Create the page.
   const page = await scraper.createPage(browser);
 
   let bookmark = gameBrowseRoot;
@@ -60,6 +61,7 @@ const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secre
 
     // Get all game details
     let count = 1;
+    let fileBuffer = '';
     for (let game of games) {
 
       // Pull the game id out of the url.
@@ -78,13 +80,12 @@ const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secre
         const { gameDetails, success, href } = await scraper.gameDetails(page, game);
         if (success) {
           fetchDetails = false;
-          fs.writeSync(fd, JSON.stringify(gameDetails) + '\n');
+          loadedGames.push(game.id);
+          fileBuffer += JSON.stringify(gameDetails) + '\n';
           fullGames++;
         }
       }
       count++;
-
-      loadedGames.push(game.id);
 
       performance.mark('gameEnd');
       performance.measure('game', 'gameStart', 'gameEnd');
@@ -93,6 +94,7 @@ const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secre
       performance.clearMarks();
       performance.clearMeasures();
     }
+    fs.writeSync(fd, fileBuffer);
     saveLoaded(loadedGames);
     fs.fsyncSync(fd);
     console.log(`games loaded ${fullGames.length} - ${bookmark}`)
@@ -112,3 +114,8 @@ function saveLoaded(loadedGames) {
   }
   fs.writeFileSync(complete, JSON.stringify(loadedGames));
 }
+
+process.on('uncaughtException', err => {
+  console.log(err);
+  process.exit(1);
+})
