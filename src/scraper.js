@@ -11,6 +11,39 @@ module.exports.createBrowser = async () => {
 
 module.exports.createPage = async (browser) => {
   const page = await browser.newPage();
+  await page.setRequestInterception(true);
+  await page.setJavaScriptEnabled(true);
+  page.on('request', interceptedRequest => {
+    if (interceptedRequest.resourceType === 'image' ||
+        interceptedRequest.resourceType === 'font' ||
+        interceptedRequest.resourceType === 'stylesheet' ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/hotness/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/geeklists/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/images/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/forums/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/files/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/geekbay/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/geekmarket/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/fans/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/videos/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/collections/g) !== -1 ||
+        interceptedRequest.url.search(/geekdo\.com\/api\/subscriptions/g) !== -1 ||
+        // interceptedRequest.url.search(/geekitem.*\.js/g) !== -1 ||
+        interceptedRequest.url.search(/\/api\/geekads/g) !== -1 ||
+        interceptedRequest.url.search(/google/g) !== -1 ||
+        interceptedRequest.url.search(/\/amazon\//g) !== -1 ||
+        interceptedRequest.url.search(/amazon-adsystem/g) !== -1 ||
+        interceptedRequest.url.search(/newrelic\.com/g) !== -1 ||
+        interceptedRequest.url.search(/youtube\.com/g) !== -1 ||
+        interceptedRequest.url.search(/twitter/g) !== -1
+    ) {
+      // console.log(`ABORTED ${interceptedRequest.url}`);
+      interceptedRequest.abort();
+    } else {
+      console.log(`KEPT ${interceptedRequest.url}`)
+      interceptedRequest.continue();
+    }
+  });
   page.on('console', msg => console.log('PAGE LOG:', msg.text));
   return page;
 };
@@ -92,10 +125,6 @@ module.exports.gameDetails = async (page, game) => {
   performance.mark('gameDetailsStart');
   return await Q.fcall(async () => {
     console.log(`--- fetching - ${game.href}`);
-
-    // Pull the game id out of the url.
-    game.id = url.parse(game.href).pathname.split('/')[2];
-
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
     const data = await page.evaluate(game => {
