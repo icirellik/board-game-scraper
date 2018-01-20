@@ -1,11 +1,21 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer';
+import cluster from 'cluster';
+import http from 'http';
+import url from 'url';
+import {
+  performance
+} from 'perf_hooks';
+
 import scraper from './src/scraper';
+
+const numCPUs = 4;
 
 const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
 const output = '/tmp/games.txt';
+const complete = '/tmp/game-loaded.json';
 
-const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farmers';
+const singleGame = 'https://boardgamegeek.com/boardgame/44338/ninja-burger-secret-ninja-death-touch-edition';
 
 // (async () => {
 //   const browser = await scraper.createBrowser();
@@ -17,9 +27,17 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
 // })()
 
 (async () => {
-  const fd = fs.openSync(output, 'a');
-  fs.ftruncateSync(fd);
 
+  // Check for previously loaded games.
+  let loadedGames = [];
+  if (fs.existsSync(complete)) {
+    loadedGames = JSON.parse(fs.readFileSync(complete));
+  }
+
+  // Open the output data file.
+  const fd = fs.openSync(output, 'a');
+
+  // Create a browser.
   const browser = await scraper.createBrowser();
 
   // Attach SIGINT handler with browser cleanup.
@@ -43,7 +61,18 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
     // Get all game details
     let count = 1;
     for (let game of games) {
-      console.log(`game details progress - ${count} of ${games.length} (${fullGames})`);
+
+      // Pull the game id out of the url.
+      game.id = url.parse(game.href).pathname.split('/')[2];
+
+      if (loadedGames.includes(game.id)) {
+        console.log(`skipping ${game.id}`);
+        fullGames++;
+        continue;
+      }
+
+      performance.mark('gameStart');
+      console.log(`games loaded - ${fullGames} - ${count} / ${games.length}`);
       let fetchDetails = true;
       while (fetchDetails) {
         const { gameDetails, success, href } = await scraper.gameDetails(page, game);
@@ -54,9 +83,19 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
         }
       }
       count++;
+
+      loadedGames.push(game.id);
+
+      performance.mark('gameEnd');
+      performance.measure('game', 'gameStart', 'gameEnd');
+      const measure = performance.getEntriesByName('game')[0];
+      console.log(`game - ${measure.duration}`);
+      performance.clearMarks();
+      performance.clearMeasures();
     }
+    saveLoaded(loadedGames);
     fs.fsyncSync(fd);
-    console.log(`Games Loaded ${fullGames.length} - ${bookmark}`)
+    console.log(`games loaded ${fullGames.length} - ${bookmark}`)
   }
 
   await scraper.closeBrowser(browser);
@@ -66,3 +105,10 @@ const singleGame = 'https://boardgamegeek.com/boardgame/102794/caverna-cave-farm
   console.log(err);
   process.exit(1);
 });
+
+function saveLoaded(loadedGames) {
+  if (fs.existsSync(complete)) {
+    fs.truncateSync(complete);
+  }
+  fs.writeFileSync(complete, JSON.stringify(loadedGames));
+}
