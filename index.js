@@ -11,9 +11,10 @@ import scraper from './src/scraper';
 
 const numCPUs = 4;
 
-const gameBrowseRoot = 'https://boardgamegeek.com/browse/boardgame';
-const output = '/tmp/games.txt';
-const complete = '/tmp/game-loaded.json';
+const BGG_GAME_BROWSE_ROOT_URL = 'https://boardgamegeek.com/browse/boardgame';
+
+const GAME_DETAILS_FILE = '/tmp/games.txt';
+const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 
 // const singleGame = 'https://boardgamegeek.com/boardgame/29649/barney-google-and-spark-plug-game';
 
@@ -30,12 +31,16 @@ const complete = '/tmp/game-loaded.json';
 
   // Check for previously loaded games.
   let loadedGames = [];
-  if (fs.existsSync(complete)) {
-    loadedGames = JSON.parse(fs.readFileSync(complete));
+  if (fs.existsSync(GAMES_LOADED_FILE)) {
+    loadedGames = JSON.parse(fs.readFileSync(GAMES_LOADED_FILE));
+  } else {
+    if (fs.existsSync(GAME_DETAILS_FILE)) {
+      fs.unlinkSync(GAME_DETAILS_FILE);
+    }
   }
 
   // Open the output data file.
-  const fd = fs.openSync(output, 'a');
+  const fd = fs.openSync(GAME_DETAILS_FILE, 'a');
 
   // Create a browser.
   const browser = await scraper.createBrowser();
@@ -50,7 +55,7 @@ const complete = '/tmp/game-loaded.json';
   // Create the page.
   const page = await scraper.createPage(browser);
 
-  let bookmark = gameBrowseRoot;
+  let bookmark = BGG_GAME_BROWSE_ROOT_URL;
   let fullGames = 1;
   while (!!bookmark) {
     const { games, nextUrl, success } = await scraper.gameList(page, bookmark);
@@ -94,9 +99,8 @@ const complete = '/tmp/game-loaded.json';
       performance.clearMarks();
       performance.clearMeasures();
     }
-    fs.writeSync(fd, fileBuffer);
+    fs.appendFileSync(fd, fileBuffer);
     saveLoaded(loadedGames);
-    fs.fsyncSync(fd);
     console.log(`games loaded ${fullGames.length} - ${bookmark}`)
   }
 
@@ -108,13 +112,19 @@ const complete = '/tmp/game-loaded.json';
   process.exit(1);
 });
 
+/**
+ * Stores the games that have successfully loaded to a lookup file.
+ */
 function saveLoaded(loadedGames) {
-  if (fs.existsSync(complete)) {
-    fs.truncateSync(complete);
+  if (fs.existsSync(GAMES_LOADED_FILE)) {
+    fs.truncateSync(GAMES_LOADED_FILE);
   }
-  fs.writeFileSync(complete, JSON.stringify(loadedGames));
+  fs.writeFileSync(GAMES_LOADED_FILE, JSON.stringify(loadedGames));
 }
 
+/**
+ * Make sure that we see uncaught errors.
+ */
 process.on('uncaughtException', err => {
   console.log(err);
   process.exit(1);
