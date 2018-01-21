@@ -232,7 +232,7 @@ export const gameDetails = async (page, game) => {
       }
 
       return {
-        gameDetails: {
+        details: {
           age: details[2].querySelector('div span').textContent.trim(),
           averageRating: game.averageRating,
           id: game.id,
@@ -267,7 +267,7 @@ export const gameDetails = async (page, game) => {
   .catch(err => {
     return {
       browseUrl: game.href,
-      gameDetails: {},
+      details: {},
       success: false,
     };
   })

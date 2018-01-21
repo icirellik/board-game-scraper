@@ -21,7 +21,6 @@ import {
   gameList,
   gameDetails,
   gameRatings,
-
 } from './src/scraper';
 import {
   markStart,
@@ -42,16 +41,17 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 //   await closeBrowser(browser);
 // })()
 
-// const singleGame = 'https://boardgamegeek.com/boardgame/29649/barney-google-and-spark-plug-game';
+// const singleGame = 'https://boardgamegeek.com/boardgame/231939/oregon-trail-hunt-food-card-game';
 
 // (async () => {
 //   const browser = await createBrowser();
 //   const page = await createPage(browser);
-//   const { gameDetails, success, href } = await gameDetails(page, {
+//   const rawData = await gameDetails(page, {
 //     href: singleGame
 //   });
+//   console.log(raw)
 //   await closeBrowser(browser);
-// })()
+// })();
 
 program
   .version('1.0.0')
@@ -109,6 +109,7 @@ const RESUMING = shouldResume(program);
       console.log(`progress - ${totalNewGames + totalSkippedGames + totalFailedGames + 1} - ${batchIndex + 1} / ${games.length}`);
       batchIndex++;
 
+      console.log(game.href)
       // Pull the game id out of the url.
       game.id = url.parse(game.href).pathname.split('/')[2];
 
@@ -121,11 +122,11 @@ const RESUMING = shouldResume(program);
       let loading = true;
       let retryCount = 0;
       while (loading) {
-        const { gameDetails, success, href } = await gameDetails(page, game);
+        const { details, success, href } = await gameDetails(page, game);
         if (success) {
           loadedGameCache.push(game.id);
           gameIdBatch.push(game.id);
-          gameBatch.push(gameDetails);
+          gameBatch.push(details);
           totalNewGames++;
           loading = false;
         } else {
