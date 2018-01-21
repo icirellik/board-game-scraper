@@ -14,7 +14,19 @@ import {
   readLoaded,
   setResume,
 } from './src/storage';
-import scraper from './src/scraper';
+import {
+  closeBrowser,
+  createBrowser,
+  createPage,
+  gameList,
+  gameDetails,
+  gameRatings,
+
+} from './src/scraper';
+import {
+  markStart,
+  markEnd,
+} from './profiling';
 
 const numCPUs = 4;
 
@@ -23,15 +35,22 @@ const BGG_GAME_BROWSE_ROOT_URL = 'https://boardgamegeek.com/browse/boardgame';
 const GAME_DETAILS_FILE = '/tmp/games.txt';
 const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 
+// (async () => {
+//   const browser = await createBrowser();
+//   const page = await createPage(browser);
+//   const ratings = await gameRatings(page, 221194, 1);
+//   await closeBrowser(browser);
+// })()
+
 // const singleGame = 'https://boardgamegeek.com/boardgame/29649/barney-google-and-spark-plug-game';
 
 // (async () => {
-//   const browser = await scraper.createBrowser();
-//   const page = await scraper.createPage(browser);
-//   const { gameDetails, success, href } = await scraper.gameDetails(page, {
+//   const browser = await createBrowser();
+//   const page = await createPage(browser);
+//   const { gameDetails, success, href } = await gameDetails(page, {
 //     href: singleGame
 //   });
-//   await scraper.closeBrowser(browser);
+//   await closeBrowser(browser);
 // })()
 
 program
@@ -58,7 +77,7 @@ const RESUMING = shouldResume(program);
   let loadedGameCache = readLoaded();
 
   // Create a browser.
-  const browser = await scraper.createBrowser();
+  const browser = await createBrowser();
 
   // Attach SIGINT handler with browser cleanup.
   process.on('SIGINT', async () => {
@@ -68,24 +87,28 @@ const RESUMING = shouldResume(program);
   });
 
   // Create the page.
-  const page = await scraper.createPage(browser);
+  const page = await createPage(browser);
 
   let bookmark = BGG_GAME_BROWSE_ROOT_URL;
-  let totalNewGames = 1;
+  let totalNewGames = 0;
   let totalFailedGames = 0;
   let totalSkippedGames = 0;
   while (!!bookmark) {
-    const { games, nextUrl, success } = await scraper.gameList(page, bookmark);
+    const { games, nextUrl, success } = await gameList(page, bookmark);
     if (!success) {
       continue;
     }
     bookmark = nextUrl;
 
     // Get all game details
-    let batchIndex = 1;
+    let batchIndex = 0;
     let gameBatch = [];
     let gameIdBatch = [];
     for (let game of games) {
+      markStart('game');
+      console.log(`progress - ${totalNewGames + totalSkippedGames + totalFailedGames + 1} - ${batchIndex + 1} / ${games.length}`);
+      batchIndex++;
+
       // Pull the game id out of the url.
       game.id = url.parse(game.href).pathname.split('/')[2];
 
@@ -95,12 +118,10 @@ const RESUMING = shouldResume(program);
         continue;
       }
 
-      performance.mark('gameStart');
-      console.log(`games loaded - ${totalNewGames + totalSkippedGames + totalFailedGames} - ${batchIndex} / ${games.length}`);
       let loading = true;
       let retryCount = 0;
       while (loading) {
-        const { gameDetails, success, href } = await scraper.gameDetails(page, game);
+        const { gameDetails, success, href } = await gameDetails(page, game);
         if (success) {
           loadedGameCache.push(game.id);
           gameIdBatch.push(game.id);
@@ -115,23 +136,27 @@ const RESUMING = shouldResume(program);
           loading = false;
         }
       }
-      batchIndex++;
 
-      performance.mark('gameEnd');
-      performance.measure('game', 'gameStart', 'gameEnd');
-      const measure = performance.getEntriesByName('game')[0];
-      console.log(`game - ${measure.duration}`);
-      performance.clearMarks();
-      performance.clearMeasures();
-
+      markEnd('game');
     }
 
     appendDetails(gameBatch);
     appendLoaded(gameIdBatch);
 
-    console.log(`games loaded ${totalNewGames.length} - ${bookmark}`)
+    console.log(`new games loaded ${totalNewGames} - ${bookmark}`)
   }
-  await scraper.closeBrowser(browser);
+
+  // Download ratings.
+  let gameIds = readLoaded();
+  for (const gameId of gameIds) {
+    let ratings;
+    let page = 1;
+    while (!!ratings || ratings.length > 0) {
+      ratings = gameRatings(page, gameId, )
+    }
+  }
+
+  await closeBrowser(browser);
 })()
 .catch(err => {
   console.log(err);
@@ -144,4 +169,4 @@ const RESUMING = shouldResume(program);
 process.on('uncaughtException', err => {
   console.log(err);
   process.exit(1);
-})
+});

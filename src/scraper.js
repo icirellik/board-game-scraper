@@ -1,17 +1,23 @@
+import axios from 'axios';
 import puppeteer from 'puppeteer';
-import Q, { race } from 'q';
+import Q from 'q';
 import url from 'url';
+
 import {
-  performance
-} from 'perf_hooks';
+  markStart,
+  markEnd,
+} from './profiling';
 
 let requestCache = {};
 
-module.exports.createBrowser = async () => {
+/**
+ * Creates a new puppeteer browser.
+ */
+export const createBrowser = async () => {
   return await puppeteer.launch();
 };
 
-module.exports.createPage = async (browser) => {
+export const createPage = async (browser) => {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   await page.setJavaScriptEnabled(true);
@@ -64,12 +70,17 @@ module.exports.createPage = async (browser) => {
   return page;
 };
 
-module.exports.closeBrowser = async (browser) => {
+/**
+ * Closes an open puppeteer browser.
+ *
+ * @param {*} browser
+ */
+export const closeBrowser = async (browser) => {
   await browser.close();
 };
 
-module.exports.gameList = async (page, browseUrl) => {
-  performance.mark('gameListStart');
+export const gameList = async (page, browseUrl) => {
+  markStart('gameList');
   return await Q.fcall(async () => {
     console.log(`--- fetching - ${browseUrl}`);
     await page.goto(browseUrl);
@@ -127,18 +138,13 @@ module.exports.gameList = async (page, browseUrl) => {
     };
   })
   .then(data => {
-    performance.mark('gameListEnd');
-    performance.measure('gameList', 'gameListStart', 'gameListEnd');
-    const measure = performance.getEntriesByName('gameList')[0];
-    console.log(`gamesList - ${measure.duration}`);
-    performance.clearMarks();
-    performance.clearMeasures();
+    markEnd('gameList');
     return data;
   });
 };
 
-module.exports.gameDetails = async (page, game) => {
-  performance.mark('gameDetailsStart');
+export const gameDetails = async (page, game) => {
+  markStart('gameDetails');
   return await Q.fcall(async () => {
     console.log(`--- fetching - ${game.href}`);
     await page.goto(game.href);
@@ -266,28 +272,56 @@ module.exports.gameDetails = async (page, game) => {
     };
   })
   .then(data => {
-    performance.mark('gameDetailsEnd');
-    performance.measure('gameDetails', 'gameDetailsStart', 'gameDetailsEnd');
-    const measure = performance.getEntriesByName('gameDetails')[0];
-    console.log(`gameDetails - ${measure.duration}`);
-    performance.clearMarks();
-    performance.clearMeasures();
+    markEnd('gameDetails');
     return data;
   });
 };
 
-module.exports.gameRatings = async (page, game) => {
+/**
+ * Download all the ratings for a single game in paginated form.
+ *
+ * if rating is 0 and review_tstamp is null then don't include
+ *
+ * Sample url (Dinosaur Island):
+ *
+ * https://boardgamegeek.com/api/collections?ajax=1&objectid=221194&objecttype=thing&oneperuser=1&pageid=1&showcount=50&sort=review_tstamp
+ *
+ * Fields:
+ * collid
+ * objectid
+ * rating
+ * user.username
+ * user.country
+ * user.city
+ * user.state
+ * review_tstamp
+ *
+ * @param {*} page
+ * @param {*} gameId
+ * @param {*} pageId
+ */
+export const gameRatings = async (page, gameId, pageId) => {
+  markStart('gameRatings');
 
-  // if rating is 0 and review_tstamp is null then don't include
+  const url = `https://boardgamegeek.com/api/collections?ajax=1&objectid=${gameId}&objecttype=thing&oneperuser=1&pageid=${pageId}&showcount=50&sort=review_tstamp`;
+  console.log(`--- fetching - ${url}`);
+  const ratings = await axios.get(url);
 
-  // objectid
-  // rating
-  // user.username
-  // user.country
-  // user.city
-  // user.state
-  // review_tstamp
+  const items = ratings.data.items
+    .filter(rating => rating['rating_tstamp'] !== null)
+    .map(rating => {
+      return {
+        id: rating.collid,
+        gameId: rating.objectId,
+        userId: rating.user.username,
+        country: rating.user.country,
+        city: rating.user.city,
+        state: rating.user.state,
+        rating: rating.rating,
+        ratingDateTime: rating['rating_tstamp'],
+      };
+    });
 
-  // https://boardgamegeek.com/api/collections?ajax=1&objectid=221194&objecttype=thing&oneperuser=1&pageid=1&showcount=50&sort=review_tstamp
-
+  markEnd('gameRatings');
+  return items;
 };
