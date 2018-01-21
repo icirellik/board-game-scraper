@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "pm2 start ecosystem.config.js",
     "test": "jest --watch",
-    "coverage": "jest --coverage"
+    "verify-tests": "jest --coverage"
   },
   "babel": {
     "presets": [
