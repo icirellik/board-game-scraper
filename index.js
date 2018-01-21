@@ -26,7 +26,7 @@ import {
 import {
   markStart,
   markEnd,
-} from './profiling';
+} from './src/profiling';
 
 const numCPUs = 4;
 
