@@ -3,10 +3,16 @@ import puppeteer from 'puppeteer';
 import cluster from 'cluster';
 import http from 'http';
 import url from 'url';
+import program from 'commander';
 import {
   performance
 } from 'perf_hooks';
 
+import {
+  appendDetails,
+  appendLoaded,
+  readLoaded,
+} from './src/storage';
 import scraper from './src/scraper';
 
 const numCPUs = 4;
@@ -27,20 +33,20 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 //   await scraper.closeBrowser(browser);
 // })()
 
+program
+  .version('1.0.0')
+  .option('-r, --resume', 'Resumes the previous run.')
+  .parse(process.argv);
+
+let resume = false;
+if (program.resume) {
+  resume = true;
+}
+
 (async () => {
 
   // Check for previously loaded games.
-  let loadedGames = [];
-  if (fs.existsSync(GAMES_LOADED_FILE)) {
-    loadedGames = JSON.parse(fs.readFileSync(GAMES_LOADED_FILE));
-  } else {
-    if (fs.existsSync(GAME_DETAILS_FILE)) {
-      fs.unlinkSync(GAME_DETAILS_FILE);
-    }
-  }
-
-  // Open the output data file.
-  const fd = fs.openSync(GAME_DETAILS_FILE, 'a');
+  let loadedGameCache = readLoaded();
 
   // Create a browser.
   const browser = await scraper.createBrowser();
@@ -56,7 +62,9 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
   const page = await scraper.createPage(browser);
 
   let bookmark = BGG_GAME_BROWSE_ROOT_URL;
-  let fullGames = 1;
+  let totalNewGames = 1;
+  let totalFailedGames = 0;
+  let totalSkippedGames = 0;
   while (!!bookmark) {
     const { games, nextUrl, success } = await scraper.gameList(page, bookmark);
     if (!success) {
@@ -65,32 +73,40 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
     bookmark = nextUrl;
 
     // Get all game details
-    let count = 1;
-    let fileBuffer = '';
+    let batchIndex = 1;
+    let gameBatch = [];
+    let gameIdBatch = [];
     for (let game of games) {
-
       // Pull the game id out of the url.
       game.id = url.parse(game.href).pathname.split('/')[2];
 
-      if (loadedGames.includes(game.id)) {
+      if (loadedGameCache.includes(game.id)) {
         console.log(`skipping ${game.id}`);
-        fullGames++;
+        totalSkippedGames++;
         continue;
       }
 
       performance.mark('gameStart');
-      console.log(`games loaded - ${fullGames} - ${count} / ${games.length}`);
-      let fetchDetails = true;
-      while (fetchDetails) {
+      console.log(`games loaded - ${totalNewGames + totalSkippedGames + totalFailedGames} - ${batchIndex} / ${games.length}`);
+      let loading = true;
+      let retryCount = 0;
+      while (loading) {
         const { gameDetails, success, href } = await scraper.gameDetails(page, game);
         if (success) {
-          fetchDetails = false;
-          loadedGames.push(game.id);
-          fileBuffer += JSON.stringify(gameDetails) + '\n';
-          fullGames++;
+          loadedGameCache.push(game.id);
+          gameIdBatch.push(game.id);
+          gameBatch.push(gameDetails);
+          totalNewGames++;
+          loading = false;
+        } else {
+          retryCount++;
+        }
+        if (retryCount === 10) {
+          totalFailedGames++;
+          loading = false;
         }
       }
-      count++;
+      batchIndex++;
 
       performance.mark('gameEnd');
       performance.measure('game', 'gameStart', 'gameEnd');
@@ -98,29 +114,20 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
       console.log(`game - ${measure.duration}`);
       performance.clearMarks();
       performance.clearMeasures();
-    }
-    fs.appendFileSync(fd, fileBuffer);
-    saveLoaded(loadedGames);
-    console.log(`games loaded ${fullGames.length} - ${bookmark}`)
-  }
 
+    }
+
+    appendDetails(gameBatch);
+    appendLoaded(gameIdBatch);
+
+    console.log(`games loaded ${totalNewGames.length} - ${bookmark}`)
+  }
   await scraper.closeBrowser(browser);
-  fs.closeSync(fd);
 })()
 .catch(err => {
   console.log(err);
   process.exit(1);
 });
-
-/**
- * Stores the games that have successfully loaded to a lookup file.
- */
-function saveLoaded(loadedGames) {
-  if (fs.existsSync(GAMES_LOADED_FILE)) {
-    fs.truncateSync(GAMES_LOADED_FILE);
-  }
-  fs.writeFileSync(GAMES_LOADED_FILE, JSON.stringify(loadedGames));
-}
 
 /**
  * Make sure that we see uncaught errors.
