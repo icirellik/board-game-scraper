@@ -85,6 +85,9 @@ export const readLoaded = () => {
  * @param {!Array<number>} loadedGames
  */
 export const appendLoaded = (loadedGames) => {
+  if (loadedGames.length === 0) {
+    return;
+  }
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   const currentLoaded = readLoaded();
@@ -100,6 +103,9 @@ export const appendLoaded = (loadedGames) => {
  * @param {!Array<number>} loadedGames
  */
 export const writeLoaded = (loadedGames) => {
+  if (loadedGames.length === 0) {
+    return;
+  }
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   if (fs.existsSync(path)) {
@@ -116,6 +122,9 @@ export const writeLoaded = (loadedGames) => {
 export const appendDetails = (() => {
   let fd;
   return (gameDetails) => {
+    if (gameDetails.length === 0) {
+      return;
+    }
     if (!fd) {
       ensureBasePath();
       fd = fs.openSync(filePath(GAME_DETAILS_FILE), 'a');

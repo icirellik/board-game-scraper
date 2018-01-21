@@ -3,7 +3,7 @@ module.exports = {
     name: "board-game-scraper",
     script: "./index.js",
     args: "--resume",
-    watch: true,
+    watch: false,
     interpreter: "babel-node",
     ignore_watch: ["node_modules", ".git", "bgg.*"]
   }]
