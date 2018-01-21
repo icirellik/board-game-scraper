@@ -12,6 +12,7 @@ import {
   appendDetails,
   appendLoaded,
   readLoaded,
+  setResume,
 } from './src/storage';
 import scraper from './src/scraper';
 
@@ -38,12 +39,20 @@ program
   .option('-r, --resume', 'Resumes the previous run.')
   .parse(process.argv);
 
-let resume = false;
-if (program.resume) {
-  resume = true;
+function shouldResume(program) {
+  if (program.resume) {
+    return true;
+  }
+  return false;
 }
 
+const RESUMING = shouldResume(program);
+
 (async () => {
+  // Quick hack to for the base path to a resume.
+  if (RESUMING) {
+    setResume(true);
+  }
 
   // Check for previously loaded games.
   let loadedGameCache = readLoaded();

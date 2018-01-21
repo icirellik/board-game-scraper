@@ -6,16 +6,8 @@ const BASE_PATH_PREFIX = 'bgg-details'
 const GAME_DETAILS_FILE = 'game-details.txt';
 const GAMES_LOADED_FILE = 'games-loaded.json';
 
-/**
- * Determines the next base path.
- */
-export function determineBasePath() {
-  let i = 1;
-  while (fs.existsSync(`${BASE_PATH_PREFIX}.${i}`)) {
-    i++;
-  }
-  return `${BASE_PATH_PREFIX}.${i}`;
-}
+let prefix = '';
+let resuming = false;
 
 /**
  * Makes sure that the base path exists.
@@ -27,17 +19,46 @@ function ensureBasePath() {
 }
 
 /**
+ * Can be used to set a folder prefix.
+ *
+ * @param {*} newPrefix
+ */
+export const setPrefix = newPrefix => {
+  prefix = newPrefix + '-';
+}
+
+/**
+ * Set the resuming flag.
+ *
+ * @param {*} isResuming
+ */
+export const setResume = isResuming => {
+  resuming = isResuming;
+}
+
+/**
+ * Determines the next base path.
+ */
+export const determineBasePath = () => {
+  let i = 1;
+  while (fs.existsSync(`${prefix}${BASE_PATH_PREFIX}.${i}`)) {
+    i++;
+  }
+  return `${prefix}${BASE_PATH_PREFIX}.${(resuming) ? i - 1 : i}`;
+}
+
+/**
  * Determines the base file path.
  */
 export const filePath = (() => {
   // Determine the base directory.
   let filePaths = {}
 
-  if (!(BASE_PATH_KEY in filePaths)) {
-    filePaths[BASE_PATH_KEY] = determineBasePath();
-  }
-
   return fileName => {
+    if (!(BASE_PATH_KEY in filePaths)) {
+      filePaths[BASE_PATH_KEY] = determineBasePath();
+    }
+
     if (!(fileName in filePaths)) {
       filePaths[fileName] = `${filePaths[BASE_PATH_KEY]}/${fileName}`;
     }
@@ -48,7 +69,7 @@ export const filePath = (() => {
 /**
  * Loads the list of previously loaded games.
  */
-export function readLoaded() {
+export const readLoaded = () => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   let loadedGames = [];
@@ -63,7 +84,7 @@ export function readLoaded() {
  *
  * @param {!Array<number>} loadedGames
  */
-export function appendLoaded(loadedGames) {
+export const appendLoaded = (loadedGames) => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   const currentLoaded = readLoaded();
@@ -78,7 +99,7 @@ export function appendLoaded(loadedGames) {
  *
  * @param {!Array<number>} loadedGames
  */
-export function writeLoaded(loadedGames) {
+export const writeLoaded = (loadedGames) => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   if (fs.existsSync(path)) {
