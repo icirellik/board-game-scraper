@@ -3,36 +3,42 @@ import rimraf from 'rimraf';
 import {
   appendDetails,
   appendLoaded,
+  configure,
   determineBasePath,
   filePath ,
   readLoaded,
+  setPrefix,
   writeLoaded,
 } from '../storage';
 import { basename } from 'path';
 import { loadavg } from 'os';
 
+const PREFIX = 'bgg-test';
+setPrefix(PREFIX);
+
 describe('storage works correctly', () => {
 
+
   afterEach(async () => {
-    await rimraf.sync('bgg-details.*');
+    await rimraf.sync(`${PREFIX}-bgg-details.*`);
   });
 
   it('determines a base path', () => {
     const basePath = determineBasePath();
-    expect(basePath).toBe('bgg-details.1');
+    expect(basePath).toBe(`${PREFIX}-bgg-details.1`);
   });
 
   it('determines a the correct next base path', async () => {
     const count = 5;
     for (let i = 1; i < count; i++) {
-      await fs.mkdirSync(`bgg-details.${i}`);
+      await fs.mkdirSync(`${PREFIX}-bgg-details.${i}`);
     }
 
     const basePath = determineBasePath();
-    expect(basePath).toBe(`bgg-details.${count}`);
+    expect(basePath).toBe(`${PREFIX}-bgg-details.${count}`);
 
     for (let i = 1; i < count; i++) {
-      await fs.rmdirSync(`bgg-details.${i}`);
+      await fs.rmdirSync(`${PREFIX}-bgg-details.${i}`);
     }
   });
 
@@ -83,7 +89,7 @@ describe('storage works correctly', () => {
       { apple: 2, banana : 3 },
     ];
     appendDetails(gameDetails);
-    const data = fs.readFileSync('bgg-details.1/game-details.txt');
+    const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
     let expected = '';
     for (const gameDetail of gameDetails) {
       expected += JSON.stringify(gameDetail) + '\n';
@@ -94,7 +100,7 @@ describe('storage works correctly', () => {
       { apple: 4, banana : 5 },
     ];
     appendDetails(gameDetails2);
-    const data2 = fs.readFileSync('bgg-details.1/game-details.txt');
+    const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
     for (const gameDetail of gameDetails2) {
       expected += JSON.stringify(gameDetail) + '\n';
     }
