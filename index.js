@@ -56,21 +56,45 @@ const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 //   await closeBrowser(browser);
 // })();
 
-program
-  .version('1.0.0')
-  .option('-r, --resume', 'Resumes the previous run.')
-  .parse(process.argv);
-
-function shouldResume(program) {
-  if (program.resume) {
-    return true;
+async function singleGameRatings(gameId) {
+  let allRatings = [];
+  let ratings;
+  let pageId = 1;
+  while (!ratings || ratings.length > 0) {
+    ratings = await gameRatings(gameId, pageId);
+    allRatings = allRatings.concat(ratings);
+    pageId++;
   }
-  return false;
+  return allGameRatings;
 }
 
-const RESUMING = shouldResume(program);
+async function allGameRatings() {
+  // Download ratings.
+  let gameIds = readLoaded();
+  let loadedRatings = readLoadedRatings();
+  for (const gameId of gameIds) {
+    if (gameId in loadedRatings) {
+      console.log(`skipping ratings ${gameId}`)
+      continue;
+    }
+    const ratings = await singleGameRatings(gameId);
+    loadedRatings.push(gameId);
+    appendRatings({
+      gameId, ratings
+    });
+    appendLoadedRatings(loadedRatings);
+  }
+}
 
-(async () => {
+/**
+ * Make sure that we see uncaught errors.
+ */
+process.on('uncaughtException', err => {
+  console.log(err);
+  process.exit(1);
+});
+
+async function main(startPage) {
   // Quick hack to for the base path to a resume.
   if (RESUMING) {
     setResume(true);
@@ -85,14 +109,14 @@ const RESUMING = shouldResume(program);
   // Attach SIGINT handler with browser cleanup.
   process.on('SIGINT', async () => {
     console.log("Interrupted exiting.");
-    await scraper.closeBrowser(browser);
+    await closeBrowser(browser);
     process.exit();
   });
 
   // Create the page.
   const page = await createPage(browser);
 
-  let bookmark = BGG_GAME_BROWSE_ROOT_URL;
+  let bookmark = (startPage > 0) ? `${BGG_GAME_BROWSE_ROOT_URL}/page/${startPage}` : BGG_GAME_BROWSE_ROOT_URL;
   let totalNewGames = 0;
   let totalFailedGames = 0;
   let totalSkippedGames = 0;
@@ -150,39 +174,37 @@ const RESUMING = shouldResume(program);
     console.log(`new games loaded ${totalNewGames} - ${bookmark}`)
   }
 
-  // Download ratings.
-  let gameIds = readLoaded();
-  let loadedRatings = readLoadedRatings();
-  for (const gameId of gameIds) {
-    if (gameId in loadedRatings) {
-      continue;
-    }
-    let allRatings = [];
-    let ratings;
-    let pageId = 1;
-    while (!ratings || ratings.length > 0) {
-      ratings = gameRatings(page, gameId, pageId);
-      allRatings = allRatings.concat(ratings);
-    }
-    loadedRatings.push(gameId);
-    appendRatings({
-      gameId, ratings
-    });
-    appendLoadedRatings(loadedRatings);
-  }
+  // Get the game ratings.
+  await allGameRatings();
 
   // Close the browser and exit.
   await closeBrowser(browser);
-})()
-.catch(err => {
-  console.log(err);
-  process.exit(1);
-});
+}
 
-/**
- * Make sure that we see uncaught errors.
- */
-process.on('uncaughtException', err => {
-  console.log(err);
-  process.exit(1);
-});
+async function singleGame(gameId) {
+  const ratings = await singleGameRatings(gameId);
+  console.log(ratings);
+}
+
+program
+  .version('1.0.0')
+  .option('-g, --game <n>', 'A single game id to load.', parseInt)
+  .option('-r, --resume', 'Resumes the previous run.')
+  .option('-p, --start-page <n>', 'The start page to begin browsing from.', parseInt)
+  .parse(process.argv);
+
+function shouldResume(program) {
+  if (program.resume) {
+    return true;
+  }
+  return false;
+}
+
+const RESUMING = shouldResume(program);
+const START_PAGE = (program.startPage > 0) ? program.startPage : 0;
+
+if (program.game) {
+  singleGame(program.game);
+} else {
+  main(START_PAGE);
+}
