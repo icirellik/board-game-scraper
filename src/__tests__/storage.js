@@ -3,10 +3,13 @@ import rimraf from 'rimraf';
 import {
   appendDetails,
   appendLoaded,
+  appendLoadedRatings,
+  appendRatings,
   configure,
   determineBasePath,
   filePath ,
   readLoaded,
+  readLoadedRatings,
   setPrefix,
   writeLoaded,
 } from '../storage';
@@ -101,6 +104,42 @@ describe('storage works correctly', () => {
     ];
     appendDetails(gameDetails2);
     const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
+    for (const gameDetail of gameDetails2) {
+      expected += JSON.stringify(gameDetail) + '\n';
+    }
+    expect(data2.toString()).toEqual(expected);
+  });
+
+  it('can read loaded ratings (first pass)', () => {
+    const loaded = readLoadedRatings();
+    expect(loaded).toEqual([]);
+  });
+
+  it('can write loaded rating and read them back', () => {
+    const ids = [1, 2, 5, 9];
+    appendLoadedRatings(ids);
+    const loaded = readLoadedRatings();
+    expect(loaded).toEqual(ids);
+  });
+
+  it('can write game ratings', () => {
+    const gameDetails = [
+      { apple: 1, banana : 2 },
+      { apple: 2, banana : 3 },
+    ];
+    appendRatings(gameDetails);
+    const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
+    let expected = '';
+    for (const gameDetail of gameDetails) {
+      expected += JSON.stringify(gameDetail) + '\n';
+    }
+    expect(data.toString()).toEqual(expected);
+    const gameDetails2 = [
+      { apple: 3, banana : 4 },
+      { apple: 4, banana : 5 },
+    ];
+    appendRatings(gameDetails2);
+    const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
     for (const gameDetail of gameDetails2) {
       expected += JSON.stringify(gameDetail) + '\n';
     }

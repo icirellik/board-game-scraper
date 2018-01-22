@@ -4,7 +4,9 @@ import { basename } from 'path';
 const BASE_PATH_KEY = 'basePath';
 const BASE_PATH_PREFIX = 'bgg-details'
 const GAME_DETAILS_FILE = 'game-details.txt';
+const GAME_RATINGS_FILE = 'game-ratings.txt';
 const GAMES_LOADED_FILE = 'games-loaded.json';
+const GAMES_LOADED_RATINGS_FILE = 'ratings-loaded.json';
 
 let prefix = '';
 let resuming = false;
@@ -72,7 +74,6 @@ export const filePath = (() => {
 export const readLoaded = () => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
-  let loadedGames = [];
   if (fs.existsSync(path)) {
      return JSON.parse(fs.readFileSync(path));
   }
@@ -95,6 +96,36 @@ export const appendLoaded = (loadedGames) => {
     fs.truncateSync(path);
   }
   fs.writeFileSync(path, JSON.stringify(currentLoaded.concat(loadedGames)));
+}
+
+/**
+ * Loads the list of previously loaded ratings.
+ */
+export const readLoadedRatings = () => {
+  ensureBasePath();
+  const path = filePath(GAMES_LOADED_RATINGS_FILE);
+  if (fs.existsSync(path)) {
+     return JSON.parse(fs.readFileSync(path));
+  }
+  return [];
+}
+
+/**
+ * Appends a new set of ratings to the output files.
+ *
+ * @param {!Array<number>} loadedRatings
+ */
+export const appendLoadedRatings = (loadedRatings) => {
+  if (loadedRatings.length === 0) {
+    return;
+  }
+  ensureBasePath();
+  const path = filePath(GAMES_LOADED_RATINGS_FILE);
+  const currentLoaded = readLoadedRatings();
+  if (fs.existsSync(path)) {
+    fs.truncateSync(path);
+  }
+  fs.writeFileSync(path, JSON.stringify(currentLoaded.concat(loadedRatings)));
 }
 
 /**
@@ -131,6 +162,25 @@ export const appendDetails = (() => {
     }
     for (let gameDetail of gameDetails) {
       fs.appendFileSync(fd, JSON.stringify(gameDetail) + '\n');
+    }
+    fs.fdatasyncSync(fd);
+  };
+})();
+
+/**
+ * Appends a list of individual game ratings to disk.
+ *
+ * @param {!Array<string>} gameRatings
+ */
+export const appendRatings = (() => {
+  let fd;
+  return (gameRatings) => {
+    if (!fd) {
+      ensureBasePath();
+      fd = fs.openSync(filePath(GAME_RATINGS_FILE), 'a');
+    }
+    for (let gameRating of gameRatings) {
+      fs.appendFileSync(fd, JSON.stringify(gameRating) + '\n');
     }
     fs.fdatasyncSync(fd);
   };

@@ -296,11 +296,10 @@ export const gameDetails = async (page, game) => {
  * user.state
  * review_tstamp
  *
- * @param {*} page
  * @param {*} gameId
  * @param {*} pageId
  */
-export const gameRatings = async (page, gameId, pageId) => {
+export const gameRatings = async (gameId, pageId) => {
   markStart('gameRatings');
 
   const url = `https://boardgamegeek.com/api/collections?ajax=1&objectid=${gameId}&objecttype=thing&oneperuser=1&pageid=${pageId}&showcount=50&sort=review_tstamp`;
