@@ -11,7 +11,10 @@ import {
 import {
   appendDetails,
   appendLoaded,
+  appendLoadedRatings,
+  appendRatings,
   readLoaded,
+  readLoadedRatings,
   setResume,
 } from './src/storage';
 import {
@@ -149,14 +152,26 @@ const RESUMING = shouldResume(program);
 
   // Download ratings.
   let gameIds = readLoaded();
+  let loadedRatings = readLoadedRatings();
   for (const gameId of gameIds) {
-    let ratings;
-    let page = 1;
-    while (!!ratings || ratings.length > 0) {
-      ratings = gameRatings(page, gameId, )
+    if (gameId in loadedRatings) {
+      continue;
     }
+    let allRatings = [];
+    let ratings;
+    let pageId = 1;
+    while (!ratings || ratings.length > 0) {
+      ratings = gameRatings(page, gameId, pageId);
+      allRatings = allRatings.concat(ratings);
+    }
+    loadedRatings.push(gameId);
+    appendRatings({
+      gameId, ratings
+    });
+    appendLoadedRatings(loadedRatings);
   }
 
+  // Close the browser and exit.
   await closeBrowser(browser);
 })()
 .catch(err => {
