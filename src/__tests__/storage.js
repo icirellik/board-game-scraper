@@ -123,26 +123,19 @@ describe('storage works correctly', () => {
   });
 
   it('can write game ratings', () => {
-    const gameDetails = [
-      { apple: 1, banana : 2 },
-      { apple: 2, banana : 3 },
-    ];
-    appendRatings(gameDetails);
+    const ratings = {
+      gameId: 1, ratings: [{}],
+    };
+    appendRatings(ratings);
     const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
-    let expected = '';
-    for (const gameDetail of gameDetails) {
-      expected += JSON.stringify(gameDetail) + '\n';
-    }
+    let expected = JSON.stringify(ratings) + '\n';
     expect(data.toString()).toEqual(expected);
-    const gameDetails2 = [
-      { apple: 3, banana : 4 },
-      { apple: 4, banana : 5 },
-    ];
-    appendRatings(gameDetails2);
+    const ratings2 = {
+      gameId: 3, ratings: [{}],
+    };
+    appendRatings(ratings2);
     const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
-    for (const gameDetail of gameDetails2) {
-      expected += JSON.stringify(gameDetail) + '\n';
-    }
+    expected += JSON.stringify(ratings2) + '\n';
     expect(data2.toString()).toEqual(expected);
   });
 

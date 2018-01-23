@@ -110,22 +110,28 @@ export const readLoadedRatings = () => {
   return [];
 }
 
+export const appendLoadedRating = gameId => {
+  return appendLoadedRatings([ gameId ]);
+}
+
 /**
  * Appends a new set of ratings to the output files.
  *
  * @param {!Array<number>} loadedRatings
  */
 export const appendLoadedRatings = (loadedRatings) => {
+  const currentLoaded = readLoadedRatings();
   if (loadedRatings.length === 0) {
-    return;
+    return currentLoaded;
   }
   ensureBasePath();
   const path = filePath(GAMES_LOADED_RATINGS_FILE);
-  const currentLoaded = readLoadedRatings();
   if (fs.existsSync(path)) {
     fs.truncateSync(path);
   }
-  fs.writeFileSync(path, JSON.stringify(currentLoaded.concat(loadedRatings)));
+  const ratings = currentLoaded.concat(loadedRatings);
+  fs.writeFileSync(path, JSON.stringify(ratings));
+  return ratings;
 }
 
 /**
@@ -179,9 +185,7 @@ export const appendRatings = (() => {
       ensureBasePath();
       fd = fs.openSync(filePath(GAME_RATINGS_FILE), 'a');
     }
-    for (let gameRating of gameRatings) {
-      fs.appendFileSync(fd, JSON.stringify(gameRating) + '\n');
-    }
+    fs.appendFileSync(fd, JSON.stringify(gameRatings) + '\n');
     fs.fdatasyncSync(fd);
   };
 })();
