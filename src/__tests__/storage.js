@@ -7,7 +7,7 @@ import {
   appendRatings,
   configure,
   determineBasePath,
-  filePath ,
+  filePath,
   readLoaded,
   readLoadedRatings,
   setPrefix,
@@ -20,8 +20,6 @@ const PREFIX = 'bgg-test';
 setPrefix(PREFIX);
 
 describe('storage works correctly', () => {
-
-
   afterEach(async () => {
     await rimraf.sync(`${PREFIX}-bgg-details.*`);
   });
@@ -70,7 +68,7 @@ describe('storage works correctly', () => {
 
   it('can write loaded games (truncating)', () => {
     const ids = [1, 2, 5, 9];
-    const moreIds = [4, 6 , 9];
+    const moreIds = [4, 6, 9];
     writeLoaded(ids);
     writeLoaded(moreIds);
     const loaded = readLoaded();
@@ -79,7 +77,7 @@ describe('storage works correctly', () => {
 
   it('can append loaded games', () => {
     const ids = [1, 2, 5, 9];
-    const moreIds = [4, 6 , 9];
+    const moreIds = [4, 6, 9];
     appendLoaded(ids);
     appendLoaded(moreIds);
     const loaded = readLoaded();
@@ -88,24 +86,24 @@ describe('storage works correctly', () => {
 
   it('can write game details', () => {
     const gameDetails = [
-      { apple: 1, banana : 2 },
-      { apple: 2, banana : 3 },
+      { apple: 1, banana: 2 },
+      { apple: 2, banana: 3 },
     ];
     appendDetails(gameDetails);
     const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
     let expected = '';
     for (const gameDetail of gameDetails) {
-      expected += JSON.stringify(gameDetail) + '\n';
+      expected += `${JSON.stringify(gameDetail)}\n`;
     }
     expect(data.toString()).toEqual(expected);
     const gameDetails2 = [
-      { apple: 3, banana : 4 },
-      { apple: 4, banana : 5 },
+      { apple: 3, banana: 4 },
+      { apple: 4, banana: 5 },
     ];
     appendDetails(gameDetails2);
     const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
     for (const gameDetail of gameDetails2) {
-      expected += JSON.stringify(gameDetail) + '\n';
+      expected += `${JSON.stringify(gameDetail)}\n`;
     }
     expect(data2.toString()).toEqual(expected);
   });
@@ -128,15 +126,14 @@ describe('storage works correctly', () => {
     };
     appendRatings(ratings);
     const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
-    let expected = JSON.stringify(ratings) + '\n';
+    let expected = `${JSON.stringify(ratings)}\n`;
     expect(data.toString()).toEqual(expected);
     const ratings2 = {
       gameId: 3, ratings: [{}],
     };
     appendRatings(ratings2);
     const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
-    expected += JSON.stringify(ratings2) + '\n';
+    expected += `${JSON.stringify(ratings2)}\n`;
     expect(data2.toString()).toEqual(expected);
   });
-
 });

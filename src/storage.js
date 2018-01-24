@@ -2,7 +2,7 @@ import fs from 'fs';
 import { basename } from 'path';
 
 const BASE_PATH_KEY = 'basePath';
-const BASE_PATH_PREFIX = 'bgg-details'
+const BASE_PATH_PREFIX = 'bgg-details';
 const GAME_DETAILS_FILE = 'game-details.txt';
 const GAME_RATINGS_FILE = 'game-ratings.txt';
 const GAMES_LOADED_FILE = 'games-loaded.json';
@@ -25,18 +25,18 @@ function ensureBasePath() {
  *
  * @param {*} newPrefix
  */
-export const setPrefix = newPrefix => {
-  prefix = newPrefix + '-';
-}
+export const setPrefix = (newPrefix) => {
+  prefix = `${newPrefix}-`;
+};
 
 /**
  * Set the resuming flag.
  *
  * @param {*} isResuming
  */
-export const setResume = isResuming => {
+export const setResume = (isResuming) => {
   resuming = isResuming;
-}
+};
 
 /**
  * Determines the next base path.
@@ -47,16 +47,16 @@ export const determineBasePath = () => {
     i++;
   }
   return `${prefix}${BASE_PATH_PREFIX}.${(resuming) ? i - 1 : i}`;
-}
+};
 
 /**
  * Determines the base file path.
  */
 export const filePath = (() => {
   // Determine the base directory.
-  let filePaths = {}
+  const filePaths = {};
 
-  return fileName => {
+  return (fileName) => {
     if (!(BASE_PATH_KEY in filePaths)) {
       filePaths[BASE_PATH_KEY] = determineBasePath();
     }
@@ -65,7 +65,7 @@ export const filePath = (() => {
       filePaths[fileName] = `${filePaths[BASE_PATH_KEY]}/${fileName}`;
     }
     return filePaths[fileName];
-  }
+  };
 })();
 
 /**
@@ -75,10 +75,10 @@ export const readLoaded = () => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_FILE);
   if (fs.existsSync(path)) {
-     return JSON.parse(fs.readFileSync(path));
+    return JSON.parse(fs.readFileSync(path));
   }
   return [];
-}
+};
 
 /**
  * Appends a new set of game to the output files.
@@ -96,7 +96,7 @@ export const appendLoaded = (loadedGames) => {
     fs.truncateSync(path);
   }
   fs.writeFileSync(path, JSON.stringify(currentLoaded.concat(loadedGames)));
-}
+};
 
 /**
  * Loads the list of previously loaded ratings.
@@ -105,14 +105,12 @@ export const readLoadedRatings = () => {
   ensureBasePath();
   const path = filePath(GAMES_LOADED_RATINGS_FILE);
   if (fs.existsSync(path)) {
-     return JSON.parse(fs.readFileSync(path));
+    return JSON.parse(fs.readFileSync(path));
   }
   return [];
-}
+};
 
-export const appendLoadedRating = gameId => {
-  return appendLoadedRatings([ gameId ]);
-}
+export const appendLoadedRating = gameId => appendLoadedRatings([gameId]);
 
 /**
  * Appends a new set of ratings to the output files.
@@ -132,7 +130,7 @@ export const appendLoadedRatings = (loadedRatings) => {
   const ratings = currentLoaded.concat(loadedRatings);
   fs.writeFileSync(path, JSON.stringify(ratings));
   return ratings;
-}
+};
 
 /**
  * Writes out the full list of loaded games after truncating the file.
@@ -149,7 +147,7 @@ export const writeLoaded = (loadedGames) => {
     fs.truncateSync(path);
   }
   fs.writeFileSync(path, JSON.stringify(loadedGames));
-}
+};
 
 /**
  * Appends a list of individual game details to disk.
@@ -166,8 +164,8 @@ export const appendDetails = (() => {
       ensureBasePath();
       fd = fs.openSync(filePath(GAME_DETAILS_FILE), 'a');
     }
-    for (let gameDetail of gameDetails) {
-      fs.appendFileSync(fd, JSON.stringify(gameDetail) + '\n');
+    for (const gameDetail of gameDetails) {
+      fs.appendFileSync(fd, `${JSON.stringify(gameDetail)}\n`);
     }
     fs.fdatasyncSync(fd);
   };
@@ -185,7 +183,7 @@ export const appendRatings = (() => {
       ensureBasePath();
       fd = fs.openSync(filePath(GAME_RATINGS_FILE), 'a');
     }
-    fs.appendFileSync(fd, JSON.stringify(gameRatings) + '\n');
+    fs.appendFileSync(fd, `${JSON.stringify(gameRatings)}\n`);
     fs.fdatasyncSync(fd);
   };
 })();

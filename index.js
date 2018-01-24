@@ -6,7 +6,7 @@ import puppeteer from 'puppeteer';
 import readline from 'readline';
 import url from 'url';
 import {
-  performance
+  performance,
 } from 'perf_hooks';
 
 import {
@@ -60,13 +60,13 @@ async function allGameRatings() {
   let loadedRatings = readLoadedRatings();
   for (const gameId of gameIds) {
     if (gameId in loadedRatings) {
-      console.log(`skipping ratings ${gameId}`)
+      console.log(`skipping ratings ${gameId}`);
       continue;
     }
     const ratings = await singleGameRatings(gameId);
     appendRatings({
       gameId,
-      ratings
+      ratings,
     });
     loadedRatings = appendLoadedRating(gameId);
   }
@@ -74,7 +74,7 @@ async function allGameRatings() {
 
 async function allGameDetails({ browser, startPage, limit }) {
   // Check for previously loaded games.
-  let loadedGameCache = readLoaded();
+  const loadedGameCache = readLoaded();
 
   // Create the page.
   const page = await createPage(browser);
@@ -93,14 +93,14 @@ async function allGameDetails({ browser, startPage, limit }) {
 
     // Get all game details
     let batchIndex = 0;
-    let gameBatch = [];
-    let gameIdBatch = [];
+    const gameBatch = [];
+    const gameIdBatch = [];
     for (const game of games) {
       markStart('game');
       console.log(`progress - ${totalNewGames + totalSkippedGames + totalFailedGames + 1} - ${batchIndex + 1} / ${games.length}`);
       batchIndex++;
 
-      console.log(game.href)
+      console.log(game.href);
       // Pull the game id out of the url.
       game.id = url.parse(game.href).pathname.split('/')[2];
 
@@ -138,7 +138,7 @@ async function allGameDetails({ browser, startPage, limit }) {
     appendDetails(gameBatch);
     appendLoaded(gameIdBatch);
 
-    console.log(`new games loaded ${totalNewGames} - ${bookmark}`)
+    console.log(`new games loaded ${totalNewGames} - ${bookmark}`);
     markStart('gamePage');
   }
 }
@@ -146,7 +146,7 @@ async function allGameDetails({ browser, startPage, limit }) {
 /**
  * Make sure that we see uncaught errors.
  */
-process.on('uncaughtException', err => {
+process.on('uncaughtException', (err) => {
   console.log(err);
   process.exit(1);
 });
@@ -162,7 +162,7 @@ async function allGames({ startPage, resume, limit }) {
 
   // Attach SIGINT handler with browser cleanup.
   process.on('SIGINT', async () => {
-    console.log("Interrupted exiting.");
+    console.log('Interrupted exiting.');
     await closeBrowser(browser);
     process.exit();
   });
@@ -251,12 +251,12 @@ if (program.yes) {
 } else {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
-  rl.question('Are these settings correct? ', async answer => {
+  rl.question('Are these settings correct? ', async (answer) => {
     if (answer === 'y' || answer === 'Y' || answer === 'yes') {
-      await main(program)
+      await main(program);
     }
     process.exit();
     rl.close();
