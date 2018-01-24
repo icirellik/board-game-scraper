@@ -1,9 +1,10 @@
-import fs from 'fs';
-import puppeteer from 'puppeteer';
 import cluster from 'cluster';
+import fs from 'fs';
 import http from 'http';
-import url from 'url';
 import program from 'commander';
+import puppeteer from 'puppeteer';
+import readline from 'readline';
+import url from 'url';
 import {
   performance
 } from 'perf_hooks';
@@ -11,6 +12,7 @@ import {
 import {
   appendDetails,
   appendLoaded,
+  appendLoadedRating,
   appendLoadedRatings,
   appendRatings,
   readLoaded,
@@ -37,25 +39,6 @@ const BGG_GAME_BROWSE_ROOT_URL = 'https://boardgamegeek.com/browse/boardgame';
 const GAME_DETAILS_FILE = '/tmp/games.txt';
 const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 
-// (async () => {
-//   const browser = await createBrowser();
-//   const page = await createPage(browser);
-//   const ratings = await gameRatings(page, 221194, 1);
-//   await closeBrowser(browser);
-// })()
-
-// const singleGame = 'https://boardgamegeek.com/boardgame/231939/oregon-trail-hunt-food-card-game';
-
-// (async () => {
-//   const browser = await createBrowser();
-//   const page = await createPage(browser);
-//   const rawData = await gameDetails(page, {
-//     href: singleGame
-//   });
-//   console.log(raw)
-//   await closeBrowser(browser);
-// })();
-
 async function singleGameRatings(gameId) {
   let allRatings = [];
   let ratings;
@@ -65,12 +48,15 @@ async function singleGameRatings(gameId) {
     allRatings = allRatings.concat(ratings);
     pageId++;
   }
-  return allGameRatings;
+  return allRatings;
 }
 
+/**
+ * Downloads all of the board game ratings.
+ */
 async function allGameRatings() {
   // Download ratings.
-  let gameIds = readLoaded();
+  const gameIds = readLoaded();
   let loadedRatings = readLoadedRatings();
   for (const gameId of gameIds) {
     if (gameId in loadedRatings) {
@@ -78,40 +64,17 @@ async function allGameRatings() {
       continue;
     }
     const ratings = await singleGameRatings(gameId);
-    loadedRatings.push(gameId);
     appendRatings({
-      gameId, ratings
+      gameId,
+      ratings
     });
-    appendLoadedRatings(loadedRatings);
+    loadedRatings = appendLoadedRating(gameId);
   }
 }
 
-/**
- * Make sure that we see uncaught errors.
- */
-process.on('uncaughtException', err => {
-  console.log(err);
-  process.exit(1);
-});
-
-async function main(startPage) {
-  // Quick hack to for the base path to a resume.
-  if (RESUMING) {
-    setResume(true);
-  }
-
+async function allGameDetails({ browser, startPage, limit }) {
   // Check for previously loaded games.
   let loadedGameCache = readLoaded();
-
-  // Create a browser.
-  const browser = await createBrowser();
-
-  // Attach SIGINT handler with browser cleanup.
-  process.on('SIGINT', async () => {
-    console.log("Interrupted exiting.");
-    await closeBrowser(browser);
-    process.exit();
-  });
 
   // Create the page.
   const page = await createPage(browser);
@@ -120,7 +83,8 @@ async function main(startPage) {
   let totalNewGames = 0;
   let totalFailedGames = 0;
   let totalSkippedGames = 0;
-  while (!!bookmark) {
+  while (!!bookmark && (totalNewGames + totalSkippedGames + totalFailedGames) < limit) {
+    markStart('gamePage');
     const { games, nextUrl, success } = await gameList(page, bookmark);
     if (!success) {
       continue;
@@ -131,7 +95,7 @@ async function main(startPage) {
     let batchIndex = 0;
     let gameBatch = [];
     let gameIdBatch = [];
-    for (let game of games) {
+    for (const game of games) {
       markStart('game');
       console.log(`progress - ${totalNewGames + totalSkippedGames + totalFailedGames + 1} - ${batchIndex + 1} / ${games.length}`);
       batchIndex++;
@@ -166,13 +130,49 @@ async function main(startPage) {
       }
 
       markEnd('game');
+      if ((totalNewGames + totalSkippedGames + totalFailedGames) >= limit) {
+        break;
+      }
     }
 
     appendDetails(gameBatch);
     appendLoaded(gameIdBatch);
 
     console.log(`new games loaded ${totalNewGames} - ${bookmark}`)
+    markStart('gamePage');
   }
+}
+
+/**
+ * Make sure that we see uncaught errors.
+ */
+process.on('uncaughtException', err => {
+  console.log(err);
+  process.exit(1);
+});
+
+async function allGames({ startPage, resume, limit }) {
+  // Quick hack to for the base path to a resume.
+  if (resume) {
+    setResume(true);
+  }
+
+  // Create a browser.
+  const browser = await createBrowser();
+
+  // Attach SIGINT handler with browser cleanup.
+  process.on('SIGINT', async () => {
+    console.log("Interrupted exiting.");
+    await closeBrowser(browser);
+    process.exit();
+  });
+
+  // Get all game deetails.
+  await allGameDetails({
+    browser,
+    limit,
+    startPage,
+  });
 
   // Get the game ratings.
   await allGameRatings();
@@ -181,30 +181,84 @@ async function main(startPage) {
   await closeBrowser(browser);
 }
 
+/**
+ * Rune a single game.
+ *
+ * @param {*} gameId
+ */
 async function singleGame(gameId) {
   const ratings = await singleGameRatings(gameId);
   console.log(ratings);
 }
 
+/**
+ * Application start.
+ */
 program
   .version('1.0.0')
-  .option('-g, --game <n>', 'A single game id to load.', parseInt)
-  .option('-r, --resume', 'Resumes the previous run.')
+  .option('-D, --only-game-details', 'Only gather the game details.', false)
+  .option('-g, --game-id <n>', 'A single game id to load.', parseInt)
+  .option('-l, --limit <n>', 'The maximun games to load.', parseInt)
   .option('-p, --start-page <n>', 'The start page to begin browsing from.', parseInt)
+  .option('-R, --only-game-ratings', 'Only gather the game ratings.', false)
+  .option('-r, --resume', 'Resumes the previous run.', false)
+  .option('-y, --yes', 'Answer yes to all prompts.', false)
   .parse(process.argv);
 
-function shouldResume(program) {
-  if (program.resume) {
-    return true;
+// Set defaults
+program.gameId = (program.gameId === undefined) ? 0 : program.gameId;
+program.limit = (program.limit === undefined) ? 0 : program.limit;
+program.onlyGameDetails = (program.onlyGameDetails === undefined) ? false : program.onlyGameDetails;
+program.onlyGameRatings = (program.onlyGameRatings === undefined) ? false : program.onlyGameRatings;
+program.resume = (program.resume === undefined) ? false : program.resume;
+program.startPage = (program.startPage === undefined) ? 0 : program.startPage;
+program.yes = (program.yes === undefined) ? false : program.yes;
+
+/**
+ * Lists the current configuration files.
+ */
+function displayConfiguration() {
+  console.log('Board Game Scraper');
+  console.log('------------------');
+  console.log(`Resuming previous run: ${program.resume}`);
+  console.log(`Start Page: ${program.startPage}`);
+  console.log(`Game Limit: ${program.limit}`);
+  console.log(`Game Id: ${program.gameId}`);
+  console.log(`Only Game Details: ${program.onlyGameDetails}`);
+  console.log(`Only Game Ratings: ${program.onlyGameRatings}`);
+  console.log(`Yes to all prompts: ${program.yes}`);
+  console.log('\n');
+}
+displayConfiguration();
+
+/**
+ * The main function.
+ */
+async function main(config) {
+  if (config.gameId > 0) {
+    await singleGame(config.gameId);
+  } else {
+    await allGames({
+      startPage: config.startPage,
+      resume: config.resume,
+      limit: config.limit,
+    });
   }
-  return false;
 }
 
-const RESUMING = shouldResume(program);
-const START_PAGE = (program.startPage > 0) ? program.startPage : 0;
-
-if (program.game) {
-  singleGame(program.game);
+if (program.yes) {
+  main(program);
 } else {
-  main(START_PAGE);
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  rl.question('Are these settings correct? ', async answer => {
+    if (answer === 'y' || answer === 'Y' || answer === 'yes') {
+      await main(program)
+    }
+    process.exit();
+    rl.close();
+  });
 }

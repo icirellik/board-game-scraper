@@ -311,7 +311,7 @@ export const gameRatings = async (gameId, pageId) => {
     .map(rating => {
       return {
         id: rating.collid,
-        gameId: rating.objectId,
+        gameId: rating.objectid,
         userId: rating.user.username,
         country: rating.user.country,
         city: rating.user.city,
