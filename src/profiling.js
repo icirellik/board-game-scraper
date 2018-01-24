@@ -1,12 +1,12 @@
 import {
-  performance
+  performance,
 } from 'perf_hooks';
 
 /**
  * Marks the start of a measure.
  * @param {*} mark
  */
-export const markStart = mark => {
+export const markStart = (mark) => {
   performance.mark(`${mark}Start`);
 };
 
@@ -14,7 +14,7 @@ export const markStart = mark => {
  * Marks the end and logs the timing for the measure.
  * @param {*} mark
  */
-export const markEnd = mark => {
+export const markEnd = (mark) => {
   performance.mark(`${mark}End`);
   performance.measure(`${mark}`, `${mark}Start`, `${mark}End`);
   const measure = performance.getEntriesByName(`${mark}`)[0];

@@ -8,20 +8,18 @@ import {
   markEnd,
 } from './profiling';
 
-let requestCache = {};
+const requestCache = {};
 
 /**
  * Creates a new puppeteer browser.
  */
-export const createBrowser = async () => {
-  return await puppeteer.launch();
-};
+export const createBrowser = async () => await puppeteer.launch();
 
 export const createPage = async (browser) => {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   await page.setJavaScriptEnabled(true);
-  page.on('request', interceptedRequest => {
+  page.on('request', (interceptedRequest) => {
     const interceptedRequestUrl = url.parse(interceptedRequest.url);
     if (interceptedRequest.resourceType === 'image' ||
         interceptedRequest.resourceType === 'font' ||
@@ -51,7 +49,7 @@ export const createPage = async (browser) => {
     // } else if (interceptedRequest.url in requestCache) {
       // interceptedRequest.respond(requestCache[interceptedRequest.url]);
     } else {
-      console.log(`KEPT ${interceptedRequest.url}`)
+      console.log(`KEPT ${interceptedRequest.url}`);
       interceptedRequest.continue();
     }
   });
@@ -103,9 +101,7 @@ export const gameList = async (page, browseUrl) => {
 
       // Game List.
       const rows = Array.from(document.querySelectorAll(gameListSelector));
-      const games = rows.filter(row => {
-        return !!row.querySelector('.collection_objectname a');
-      }).map(row => {
+      const games = rows.filter(row => !!row.querySelector('.collection_objectname a')).map((row) => {
         const anchor = row.querySelector('.collection_objectname a');
         const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
         return {
@@ -119,8 +115,8 @@ export const gameList = async (page, browseUrl) => {
       return {
         games,
         hasNext: nextPageAnchor.length !== 0,
-        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : ''
-      }
+        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
+      };
     }, nextSelector, gameListSelector);
 
     return {
@@ -130,17 +126,17 @@ export const gameList = async (page, browseUrl) => {
       success: true,
     };
   })
-  .catch(err => {
-    console.log(`Failed to retrieve game details ${err}`);
-    return {
-      browseUrl,
-      success: false,
-    };
-  })
-  .then(data => {
-    markEnd('gameList');
-    return data;
-  });
+    .catch((err) => {
+      console.log(`Failed to retrieve game details ${err}`);
+      return {
+        browseUrl,
+        success: false,
+      };
+    })
+    .then((data) => {
+      markEnd('gameList');
+      return data;
+    });
 };
 
 export const gameDetails = async (page, game) => {
@@ -149,7 +145,7 @@ export const gameDetails = async (page, game) => {
     console.log(`--- fetching - ${game.href}`);
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
-    const data = await page.evaluate(game => {
+    const data = await page.evaluate((game) => {
       const root = document.querySelector('div.game:not(.game-loading)');
       const details = Array.from(root.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
 
@@ -163,9 +159,9 @@ export const gameDetails = async (page, game) => {
 
       // Game credits
       const gameCredits = Array.from(root.querySelectorAll('.game-header .game-header-credits .credits ul li'));
-      let artists = [];
-      let designers = [];
-      let publishers = [];
+      const artists = [];
+      const designers = [];
+      const publishers = [];
       for (const gameCredit of gameCredits) {
         const label = gameCredit.querySelector('strong');
 
@@ -192,15 +188,14 @@ export const gameDetails = async (page, game) => {
             publishers.push(rawPublisher.textContent.trim());
           }
         }
-
       }
 
       // Game Categories
       const featureGroups = Array.from(root.querySelectorAll('.game-description-classification .panel-body ul li'));
-      let types = [];
-      let categories = [];
-      let mechanisms = [];
-      let families = [];
+      const types = [];
+      const categories = [];
+      const mechanisms = [];
+      const families = [];
       for (const featureGroup of featureGroups) {
         const featureTitle = featureGroup.querySelector('.feature-title');
         // Type
@@ -260,21 +255,19 @@ export const gameDetails = async (page, game) => {
         href: game.href,
         success: true,
       };
-    }, game)
+    }, game);
     console.log(JSON.stringify(data));
     return data;
   })
-  .catch(err => {
-    return {
+    .catch(err => ({
       browseUrl: game.href,
       details: {},
       success: false,
-    };
-  })
-  .then(data => {
-    markEnd('gameDetails');
-    return data;
-  });
+    }))
+    .then((data) => {
+      markEnd('gameDetails');
+      return data;
+    });
 };
 
 /**
@@ -307,19 +300,17 @@ export const gameRatings = async (gameId, pageId) => {
   const ratings = await axios.get(url);
 
   const items = ratings.data.items
-    .filter(rating => rating['rating_tstamp'] !== null)
-    .map(rating => {
-      return {
-        id: rating.collid,
-        gameId: rating.objectid,
-        userId: rating.user.username,
-        country: rating.user.country,
-        city: rating.user.city,
-        state: rating.user.state,
-        rating: rating.rating,
-        ratingDateTime: rating['rating_tstamp'],
-      };
-    });
+    .filter(rating => rating.rating_tstamp !== null)
+    .map(rating => ({
+      id: rating.collid,
+      gameId: rating.objectid,
+      userId: rating.user.username,
+      country: rating.user.country,
+      city: rating.user.city,
+      state: rating.user.state,
+      rating: rating.rating,
+      ratingDateTime: rating.rating_tstamp,
+    }));
 
   markEnd('gameRatings');
   return items;
