@@ -207,7 +207,7 @@ program
 
 // Set defaults
 program.gameId = (program.gameId === undefined) ? 0 : program.gameId;
-program.limit = (program.limit === undefined) ? 0 : program.limit;
+program.limit = (program.limit === undefined) ? Number.MAX_SAFE_INTEGER : program.limit;
 program.onlyGameDetails = (program.onlyGameDetails === undefined) ? false : program.onlyGameDetails;
 program.onlyGameRatings = (program.onlyGameRatings === undefined) ? false : program.onlyGameRatings;
 program.resume = (program.resume === undefined) ? false : program.resume;
