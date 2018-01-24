@@ -105,7 +105,7 @@ export const gameList = async (page, browseUrl) => {
         const anchor = row.querySelector('.collection_objectname a');
         const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
         return {
-          avgerageRating: rating[1].textContent.trim(),
+          averageRating: rating[1].textContent.trim(),
           href: anchor.href,
           name: anchor.textContent,
           votes: rating[2].textContent.trim(),
@@ -125,18 +125,16 @@ export const gameList = async (page, browseUrl) => {
       browseUrl,
       success: true,
     };
-  })
-    .catch((err) => {
-      console.log(`Failed to retrieve game details ${err}`);
-      return {
-        browseUrl,
-        success: false,
-      };
-    })
-    .then((data) => {
-      markEnd('gameList');
-      return data;
-    });
+  }).catch((err) => {
+    console.log(`Failed to retrieve game details ${err}`);
+    return {
+      browseUrl,
+      success: false,
+    };
+  }).then((data) => {
+    markEnd('gameList');
+    return data;
+  });
 };
 
 export const gameDetails = async (page, game) => {
@@ -258,16 +256,14 @@ export const gameDetails = async (page, game) => {
     }, game);
     console.log(JSON.stringify(data));
     return data;
-  })
-    .catch(err => ({
-      browseUrl: game.href,
-      details: {},
-      success: false,
-    }))
-    .then((data) => {
-      markEnd('gameDetails');
-      return data;
-    });
+  }).catch(err => ({
+    browseUrl: game.href,
+    details: {},
+    success: false,
+  })).then((data) => {
+    markEnd('gameDetails');
+    return data;
+  });
 };
 
 /**
