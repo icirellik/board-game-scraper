@@ -26,6 +26,22 @@ import {
 
 const BGG_GAME_BROWSE_ROOT_URL = 'https://boardgamegeek.com/browse/boardgame';
 
+/**
+ * Breaks an array into fixed size batches.
+ */
+function batchify(arr, batchSize) {
+  return arr.reduce((memo, cur) => {
+    const batchIndex = parseInt(Object.keys(memo).length - 1, 10);
+    const batches = memo;
+    if (batches[batchIndex].length < batchSize) {
+      batches[batchIndex].push(cur);
+    } else {
+      batches[batchIndex + 1] = [cur];
+    }
+    return batches;
+  }, { 0: [] });
+}
+
 async function singleGameRatings(gameId) {
   let allRatings = [];
   let ratings;
