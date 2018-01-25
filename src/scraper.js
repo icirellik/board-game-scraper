@@ -13,7 +13,7 @@ const requestCache = {};
 /**
  * Creates a new puppeteer browser.
  */
-export const createBrowser = async () => await puppeteer.launch();
+export const createBrowser = async () => puppeteer.launch();
 
 export const createPage = async (browser) => {
   const page = await browser.newPage();
@@ -79,7 +79,7 @@ export const closeBrowser = async (browser) => {
 
 export const gameList = async (page, browseUrl) => {
   markStart('gameList');
-  return await Q.fcall(async () => {
+  return Q.fcall(async () => {
     console.log(`--- fetching - ${browseUrl}`);
     await page.goto(browseUrl);
 
@@ -139,7 +139,7 @@ export const gameList = async (page, browseUrl) => {
 
 export const gameDetails = async (page, game) => {
   markStart('gameDetails');
-  return await Q.fcall(async () => {
+  return Q.fcall(async () => {
     console.log(`--- fetching - ${game.href}`);
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
@@ -256,7 +256,7 @@ export const gameDetails = async (page, game) => {
     }, game);
     console.log(JSON.stringify(data));
     return data;
-  }).catch(err => ({
+  }).catch(() => ({
     browseUrl: game.href,
     details: {},
     success: false,
@@ -291,9 +291,9 @@ export const gameDetails = async (page, game) => {
 export const gameRatings = async (gameId, pageId) => {
   markStart('gameRatings');
 
-  const url = `https://boardgamegeek.com/api/collections?ajax=1&objectid=${gameId}&objecttype=thing&oneperuser=1&pageid=${pageId}&showcount=50&sort=review_tstamp`;
-  console.log(`--- fetching - ${url}`);
-  const ratings = await axios.get(url);
+  const gameRatingsUrl = `https://boardgamegeek.com/api/collections?ajax=1&objectid=${gameId}&objecttype=thing&oneperuser=1&pageid=${pageId}&showcount=50&sort=review_tstamp`;
+  console.log(`--- fetching - ${gameRatingsUrl}`);
+  const ratings = await axios.get(gameRatingsUrl);
 
   const items = ratings.data.items
     .filter(rating => rating.rating_tstamp !== null)

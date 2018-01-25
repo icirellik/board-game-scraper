@@ -5,7 +5,6 @@ import {
   appendLoaded,
   appendLoadedRatings,
   appendRatings,
-  configure,
   determineBasePath,
   filePath,
   readLoaded,
@@ -13,8 +12,6 @@ import {
   setPrefix,
   writeLoaded,
 } from '../storage';
-import { basename } from 'path';
-import { loadavg } from 'os';
 
 const PREFIX = 'bgg-test';
 setPrefix(PREFIX);
@@ -31,14 +28,14 @@ describe('storage works correctly', () => {
 
   it('determines a the correct next base path', async () => {
     const count = 5;
-    for (let i = 1; i < count; i++) {
+    for (let i = 1; i < count; i += 1) {
       await fs.mkdirSync(`${PREFIX}-bgg-details.${i}`);
     }
 
     const basePath = determineBasePath();
     expect(basePath).toBe(`${PREFIX}-bgg-details.${count}`);
 
-    for (let i = 1; i < count; i++) {
+    for (let i = 1; i < count; i += 1) {
       await fs.rmdirSync(`${PREFIX}-bgg-details.${i}`);
     }
   });
@@ -128,6 +125,7 @@ describe('storage works correctly', () => {
     const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-ratings.txt`);
     let expected = `${JSON.stringify(ratings)}\n`;
     expect(data.toString()).toEqual(expected);
+
     const ratings2 = {
       gameId: 3, ratings: [{}],
     };
