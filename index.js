@@ -1,19 +1,11 @@
-import cluster from 'cluster';
-import fs from 'fs';
-import http from 'http';
 import program from 'commander';
-import puppeteer from 'puppeteer';
 import readline from 'readline';
 import url from 'url';
-import {
-  performance,
-} from 'perf_hooks';
 
 import {
   appendDetails,
   appendLoaded,
   appendLoadedRating,
-  appendLoadedRatings,
   appendRatings,
   readLoaded,
   readLoadedRatings,
@@ -32,12 +24,7 @@ import {
   markEnd,
 } from './src/profiling';
 
-const numCPUs = 4;
-
 const BGG_GAME_BROWSE_ROOT_URL = 'https://boardgamegeek.com/browse/boardgame';
-
-const GAME_DETAILS_FILE = '/tmp/games.txt';
-const GAMES_LOADED_FILE = '/tmp/game-loaded.json';
 
 async function singleGameRatings(gameId) {
   let allRatings = [];
@@ -46,7 +33,7 @@ async function singleGameRatings(gameId) {
   while (!ratings || ratings.length > 0) {
     ratings = await gameRatings(gameId, pageId);
     allRatings = allRatings.concat(ratings);
-    pageId++;
+    pageId += 1;
   }
   return allRatings;
 }
@@ -61,14 +48,14 @@ async function allGameRatings() {
   for (const gameId of gameIds) {
     if (gameId in loadedRatings) {
       console.log(`skipping ratings ${gameId}`);
-      continue;
+    } else {
+      const ratings = await singleGameRatings(gameId);
+      appendRatings({
+        gameId,
+        ratings,
+      });
+      loadedRatings = appendLoadedRating(gameId);
     }
-    const ratings = await singleGameRatings(gameId);
-    appendRatings({
-      gameId,
-      ratings,
-    });
-    loadedRatings = appendLoadedRating(gameId);
   }
 }
 
