@@ -29,14 +29,14 @@ describe('storage works correctly', () => {
   it('determines a the correct next base path', async () => {
     const count = 5;
     for (let i = 1; i < count; i += 1) {
-      await fs.mkdirSync(`${PREFIX}-bgg-details.${i}`);
+      fs.mkdirSync(`${PREFIX}-bgg-details.${i}`);
     }
 
     const basePath = determineBasePath();
     expect(basePath).toBe(`${PREFIX}-bgg-details.${count}`);
 
     for (let i = 1; i < count; i += 1) {
-      await fs.rmdirSync(`${PREFIX}-bgg-details.${i}`);
+      fs.rmdirSync(`${PREFIX}-bgg-details.${i}`);
     }
   });
 
@@ -89,9 +89,9 @@ describe('storage works correctly', () => {
     appendDetails(gameDetails);
     const data = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
     let expected = '';
-    for (const gameDetail of gameDetails) {
+    gameDetails.forEach((gameDetail) => {
       expected += `${JSON.stringify(gameDetail)}\n`;
-    }
+    });
     expect(data.toString()).toEqual(expected);
     const gameDetails2 = [
       { apple: 3, banana: 4 },
@@ -99,9 +99,9 @@ describe('storage works correctly', () => {
     ];
     appendDetails(gameDetails2);
     const data2 = fs.readFileSync(`${PREFIX}-bgg-details.1/game-details.txt`);
-    for (const gameDetail of gameDetails2) {
+    gameDetails2.forEach((gameDetail) => {
       expected += `${JSON.stringify(gameDetail)}\n`;
-    }
+    });
     expect(data2.toString()).toEqual(expected);
   });
 
