@@ -1,3 +1,4 @@
+/* eslint-env browser */
 import axios from 'axios';
 import puppeteer from 'puppeteer';
 import Q from 'q';
@@ -8,7 +9,141 @@ import {
   markEnd,
 } from './profiling';
 
-const requestCache = {};
+function parseBrowseGames(nextSelector, gameListSelector) {
+  // Next Page Check.
+  const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
+  const nextPageAnchor = pageAnchors
+    .filter(anchor => anchor.title === 'next page')
+    .map(anchor => anchor.href);
+
+  // Game List.
+  const rows = Array.from(document.querySelectorAll(gameListSelector));
+  const games = rows.filter(row => !!row.querySelector('.collection_objectname a')).map((row) => {
+    const anchor = row.querySelector('.collection_objectname a');
+    const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
+    return {
+      averageRating: rating[1].textContent.trim(),
+      href: anchor.href,
+      name: anchor.textContent,
+      votes: rating[2].textContent.trim(),
+    };
+  });
+
+  return {
+    games,
+    hasNext: nextPageAnchor.length !== 0,
+    next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
+  };
+}
+
+function parseGameDetails(game) {
+  const root = document.querySelector('div.game:not(.game-loading)');
+  const details = Array.from(root.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
+
+  const players = details[0].querySelectorAll('.gameplay-item-primary span span');
+  const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
+  const maximunPlayers = (players.length > 1)
+    ? players[1].textContent.trim().substring(1)
+    : minimumPlayers;
+
+  const playLength = details[1].querySelectorAll('div span span span');
+  const minimumTime = (playLength.length > 0) ? playLength[0].textContent.trim() : 0;
+  const maximumTime = (playLength.length > 1)
+    ? playLength[1].textContent.trim().substring(1)
+    : minimumTime;
+
+  // Game credits
+  const gameCredits = Array.from(root.querySelectorAll('.game-header .game-header-credits .credits ul li'));
+  const artists = [];
+  const designers = [];
+  const publishers = [];
+  gameCredits.forEach((gameCredit) => {
+    const label = gameCredit.querySelector('strong');
+
+    // Designers
+    if (label && label.textContent && label.textContent.search(/Designer/g) !== -1) {
+      const rawDesigners = Array.from(gameCredit.querySelectorAll('span a'));
+      rawDesigners.forEach((rawDesigner) => {
+        designers.push(rawDesigner.textContent.trim());
+      });
+    } else if (label && label.textContent && label.textContent.search(/Artist/g) !== -1) {
+      // Artists
+      const rawArtists = Array.from(gameCredit.querySelectorAll('span a'));
+      rawArtists.forEach((rawArtist) => {
+        artists.push(rawArtist.textContent.trim());
+      });
+    } else if (label && label.textContent && label.textContent.search(/Publisher/g) !== -1) {
+      // Publishers
+      const rawPublihers = Array.from(gameCredit.querySelectorAll('span a'));
+      rawPublihers.forEach((rawPublisher) => {
+        publishers.push(rawPublisher.textContent.trim());
+      });
+    }
+  });
+
+  // Game Categories
+  const featureGroups = Array.from(root.querySelectorAll('.game-description-classification .panel-body ul li'));
+  const types = [];
+  const categories = [];
+  const mechanisms = [];
+  const families = [];
+  featureGroups.forEach((featureGroup) => {
+    const featureTitle = featureGroup.querySelector('.feature-title');
+    // Type
+    if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Type/g) !== -1) {
+      const rawType = featureGroup.querySelector('.feature-description span');
+      types.push(rawType.textContent.trim());
+    } else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Category/g) !== -1) {
+      // Category
+      const rawCategories = featureGroup.querySelectorAll('.feature-description span a');
+      rawCategories.forEach((rawCategory) => {
+        categories.push(rawCategory.textContent.trim());
+      });
+    } else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Mechanisms/g) !== -1) {
+      // Mechanisms
+      const rawMechanisms = featureGroup.querySelectorAll('.feature-description span a');
+      rawMechanisms.forEach((rawMechanism) => {
+        mechanisms.push(rawMechanism.textContent.trim());
+      });
+    } else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Family/g) !== -1) {
+      // Family
+      const rawFamilies = featureGroup.querySelectorAll('.feature-description span a');
+      rawFamilies.forEach((rawFamily) => {
+        families.push(rawFamily.textContent.trim());
+      });
+    }
+  });
+
+  return {
+    details: {
+      age: details[2].querySelector('div span').textContent.trim(),
+      averageRating: game.averageRating,
+      id: game.id,
+      title: game.name,
+      votes: game.votes,
+      players: {
+        maximum: maximunPlayers,
+        minimum: minimumPlayers,
+      },
+      time: {
+        maximum: maximumTime,
+        minimum: minimumTime,
+      },
+      weight: details[3].querySelector('div span span').textContent.trim(),
+      features: {
+        categories,
+        families,
+        mechanisms,
+        types,
+      },
+      designers,
+      artists,
+      publishers,
+    },
+    href: game.href,
+    success: true,
+  };
+}
 
 /**
  * Creates a new puppeteer browser.
@@ -92,32 +227,11 @@ export const gameList = async (page, browseUrl) => {
     // Wait for the page to load.
     await page.waitForSelector(nextSelector);
     await page.waitForSelector(gameListSelector);
-    const data = await page.evaluate((nextSelector, gameListSelector) => {
-      // Next Page Check.
-      const pageAnchors = Array.from(document.querySelectorAll(nextSelector));
-      const nextPageAnchor = pageAnchors
-        .filter(anchor => anchor.title === 'next page')
-        .map(anchor => anchor.href);
-
-      // Game List.
-      const rows = Array.from(document.querySelectorAll(gameListSelector));
-      const games = rows.filter(row => !!row.querySelector('.collection_objectname a')).map((row) => {
-        const anchor = row.querySelector('.collection_objectname a');
-        const rating = Array.from(row.querySelectorAll('.collection_bggrating'));
-        return {
-          averageRating: rating[1].textContent.trim(),
-          href: anchor.href,
-          name: anchor.textContent,
-          votes: rating[2].textContent.trim(),
-        };
-      });
-
-      return {
-        games,
-        hasNext: nextPageAnchor.length !== 0,
-        next: (nextPageAnchor.length !== 0) ? nextPageAnchor[0].trim() : '',
-      };
-    }, nextSelector, gameListSelector);
+    const data = await page.evaluate(
+      parseBrowseGames,
+      nextSelector,
+      gameListSelector,
+    );
 
     return {
       games: data.games,
@@ -143,117 +257,7 @@ export const gameDetails = async (page, game) => {
     console.log(`--- fetching - ${game.href}`);
     await page.goto(game.href);
     await page.waitForSelector('.game-header-body');
-    const data = await page.evaluate((game) => {
-      const root = document.querySelector('div.game:not(.game-loading)');
-      const details = Array.from(root.querySelectorAll('.game-header-body .gameplay .gameplay-item'));
-
-      const players = details[0].querySelectorAll('.gameplay-item-primary span span');
-      const minimumPlayers = (players.length > 0) ? players[0].textContent.trim() : 0;
-      const maximunPlayers = (players.length > 1) ? players[1].textContent.trim().substring(1) : minimumPlayers;
-
-      const playLength = details[1].querySelectorAll('div span span span');
-      const minimumTime = (playLength.length > 0) ? playLength[0].textContent.trim() : 0;
-      const maximumTime = (playLength.length > 1) ? playLength[1].textContent.trim().substring(1) : minimumTime;
-
-      // Game credits
-      const gameCredits = Array.from(root.querySelectorAll('.game-header .game-header-credits .credits ul li'));
-      const artists = [];
-      const designers = [];
-      const publishers = [];
-      for (const gameCredit of gameCredits) {
-        const label = gameCredit.querySelector('strong');
-
-        // Designers
-        if (label && label.textContent && label.textContent.search(/Designer/g) !== -1) {
-          const rawDesigners = Array.from(gameCredit.querySelectorAll('span a'));
-          for (const rawDesigner of rawDesigners) {
-            designers.push(rawDesigner.textContent.trim());
-          }
-        }
-
-        // Artists
-        else if (label && label.textContent && label.textContent.search(/Artist/g) !== -1) {
-          const rawArtists = Array.from(gameCredit.querySelectorAll('span a'));
-          for (const rawArtist of rawArtists) {
-            artists.push(rawArtist.textContent.trim());
-          }
-        }
-
-        // Publishers
-        else if (label && label.textContent && label.textContent.search(/Publisher/g) !== -1) {
-          const rawPublihers = Array.from(gameCredit.querySelectorAll('span a'));
-          for (const rawPublisher of rawPublihers) {
-            publishers.push(rawPublisher.textContent.trim());
-          }
-        }
-      }
-
-      // Game Categories
-      const featureGroups = Array.from(root.querySelectorAll('.game-description-classification .panel-body ul li'));
-      const types = [];
-      const categories = [];
-      const mechanisms = [];
-      const families = [];
-      for (const featureGroup of featureGroups) {
-        const featureTitle = featureGroup.querySelector('.feature-title');
-        // Type
-        if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Type/g) !== -1) {
-          const rawType = featureGroup.querySelector('.feature-description span');
-          types.push(rawType.textContent.trim());
-        }
-        // Category
-        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Category/g) !== -1) {
-          const rawCategories = featureGroup.querySelectorAll('.feature-description span a');
-          for (const rawCategory of rawCategories) {
-            categories.push(rawCategory.textContent.trim());
-          }
-        }
-        // Mechanisms
-        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Mechanisms/g) !== -1) {
-          const rawMechanisms = featureGroup.querySelectorAll('.feature-description span a');
-          for (const rawMechanism of rawMechanisms) {
-            mechanisms.push(rawMechanism.textContent.trim());
-          }
-        }
-        // Family
-        else if (featureTitle && featureTitle.textContent && featureTitle.textContent.search(/Family/g) !== -1) {
-          const rawFamilies = featureGroup.querySelectorAll('.feature-description span a');
-          for (const rawFamily of rawFamilies) {
-            families.push(rawFamily.textContent.trim());
-          }
-        }
-      }
-
-      return {
-        details: {
-          age: details[2].querySelector('div span').textContent.trim(),
-          averageRating: game.averageRating,
-          id: game.id,
-          title: game.name,
-          votes: game.votes,
-          players: {
-            maximum: maximunPlayers,
-            minimum: minimumPlayers,
-          },
-          time: {
-            maximum: maximumTime,
-            minimum: minimumTime,
-          },
-          weight: details[3].querySelector('div span span').textContent.trim(),
-          features: {
-            categories,
-            families,
-            mechanisms,
-            types,
-          },
-          designers,
-          artists,
-          publishers,
-        },
-        href: game.href,
-        success: true,
-      };
-    }, game);
+    const data = await page.evaluate(parseGameDetails, game);
     console.log(JSON.stringify(data));
     return data;
   }).catch(() => ({
